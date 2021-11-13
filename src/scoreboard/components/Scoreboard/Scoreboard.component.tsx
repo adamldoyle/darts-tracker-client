@@ -1,4 +1,5 @@
 import { useState, FC, FormEvent } from 'react';
+import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 
 const GOAL = 301;
 
@@ -26,7 +27,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }, {}),
   );
   const remainingPlayers = players.filter((player) => totals[player] !== GOAL);
-  const currentPlayer = remainingPlayers[currentPlayerIdx] ?? 'None';
+  const currentPlayer = remainingPlayers[currentPlayerIdx];
 
   const addPlayer = (evt: FormEvent) => {
     evt.preventDefault();
@@ -35,7 +36,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   };
 
   const saveScore = (_newScore: number) => {
-    if (saving) {
+    if (saving || !currentPlayer) {
       return;
     }
     setSaving(true);
@@ -69,6 +70,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
       return;
     }
     saveScore(0);
+  };
+
+  const handleDartboardClick = (details: DartboardClickDetails) => {
+    setScore(score + details.score);
   };
 
   return (
@@ -115,9 +120,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           </table>
         </div>
         <div style={{ flex: '1 0 auto' }}>
-          <h2>Current player: {currentPlayer}</h2>
+          <h2>Current player: {currentPlayer ?? 'None'}</h2>
           <h2>Current round: {currentRound + 1}</h2>
-          <div>
+          <DartboardWrapper size={400} onClick={handleDartboardClick} />
+          <div style={{ marginTop: 20 }}>
             <form onSubmit={addScore}>
               <input type="number" value={score} onChange={(evt) => setScore(parseInt(evt.target.value))} />
               <input type="submit" value="Save score" disabled={saving} />
