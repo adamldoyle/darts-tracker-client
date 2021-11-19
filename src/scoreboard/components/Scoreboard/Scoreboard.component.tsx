@@ -1,4 +1,4 @@
-import { useState, FC, FormEvent } from 'react';
+import { useState, useRef, FC, FormEvent, ChangeEvent } from 'react';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 
 const GOAL = 301;
@@ -13,11 +13,14 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
+  const scoreRef = useRef<HTMLInputElement | null>(null);
+  const playerNameRef = useRef<HTMLInputElement | null>(null);
+  const [editModeScores, setEditModeScores] = useState<Record<string, number>[] | undefined>(undefined);
 
   const totals = rounds.reduce<Record<string, number>>(
     (acc, round) => {
       Object.entries(round).forEach((playerEntry) => {
-        acc[playerEntry[0]] = (acc[playerEntry[0]] ?? 0) + playerEntry[1];
+        acc[playerEntry[0]] = (acc[playerEntry[0]] ?? 0) + Math.max(playerEntry[1], 0);
       });
       return acc;
     },
@@ -33,6 +36,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     evt.preventDefault();
     setPlayers([...players, newPlayer]);
     setNewPlayer('');
+    playerNameRef.current?.focus();
   };
 
   const saveScore = (_newScore: number) => {
@@ -55,6 +59,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
       setRounds(newRounds);
     }
     setScore(0);
+    scoreRef.current?.focus();
     setTimeout(() => {
       setSaving(false);
     }, 1000);
@@ -69,18 +74,50 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     if (saving) {
       return;
     }
-    saveScore(0);
+    saveScore(-1);
   };
 
   const handleDartboardClick = (details: DartboardClickDetails) => {
     setScore(score + details.score);
   };
 
+  const onEditScoreChange = (roundNum: number, player: string) => (evt: ChangeEvent<HTMLInputElement>) => {
+    if (!editModeScores) {
+      return;
+    }
+
+    const newScores = [...editModeScores];
+    newScores[roundNum][player] = parseInt(evt.target.value || '0');
+    setEditModeScores(newScores);
+  };
+
+  const renderScore = (roundNum: number, player: string) => {
+    if (editModeScores) {
+      const roundScore = editModeScores[roundNum][player];
+      if (roundScore === undefined) {
+        return null;
+      }
+      return <input type="number" value={roundScore} onChange={onEditScoreChange(roundNum, player)} />;
+    } else {
+      const roundScore = rounds[roundNum][player];
+      return roundScore === -1 ? 'x' : roundScore;
+    }
+  };
+
+  const toggleEditMode = () => {
+    if (editModeScores) {
+      setRounds(editModeScores);
+      setEditModeScores(undefined);
+    } else {
+      setEditModeScores(rounds.map((round) => ({ ...round })));
+    }
+  };
+
   return (
     <>
       <div>
         <form onSubmit={addPlayer}>
-          <input type="text" value={newPlayer} onChange={(evt) => setNewPlayer(evt.target.value)} />
+          <input ref={playerNameRef} type="text" value={newPlayer} onChange={(evt) => setNewPlayer(evt.target.value)} />
           <input type="submit" value="Add player" />
         </form>
       </div>
@@ -102,7 +139,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                 <tr key={roundNum}>
                   <td style={{ fontWeight: 'bold' }}>{roundNum + 1}</td>
                   {players.map((player) => (
-                    <td key={player}>{round[player] ?? ''}</td>
+                    <td key={player}>{renderScore(roundNum, player)}</td>
                   ))}
                 </tr>
               ))}
@@ -118,6 +155,8 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
               </tr>
             </tfoot>
           </table>
+          <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
+          {editModeScores && <input type="button" onClick={() => setEditModeScores(undefined)} value="Cancel" />}
         </div>
         <div style={{ flex: '1 0 auto' }}>
           <h2>Current player: {currentPlayer ?? 'None'}</h2>
@@ -125,7 +164,12 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           <DartboardWrapper size={400} onClick={handleDartboardClick} />
           <div style={{ marginTop: 20 }}>
             <form onSubmit={addScore}>
-              <input type="number" value={score} onChange={(evt) => setScore(parseInt(evt.target.value))} />
+              <input
+                ref={scoreRef}
+                type="number"
+                value={score}
+                onChange={(evt) => setScore(parseInt(evt.target.value))}
+              />
               <input type="submit" value="Save score" disabled={saving} />
               <input type="button" value="Bust!" onClick={addBust} disabled={saving} />
             </form>
