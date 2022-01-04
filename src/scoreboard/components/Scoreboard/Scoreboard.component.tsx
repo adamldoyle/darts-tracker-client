@@ -1,21 +1,23 @@
 import { useState, useRef, FC, FormEvent, ChangeEvent } from 'react';
+import { API } from 'aws-amplify';
+import { useSelector } from 'react-redux';
+import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
-
-const GOAL = 301;
 
 export interface ScoreboardProps {}
 
 export const Scoreboard: FC<ScoreboardProps> = () => {
+  const selectedLeague = useSelector(selectors.selectSelectedLeague);
+
   const [players, setPlayers] = useState<string[]>([]);
-  const [newPlayer, setNewPlayer] = useState<string>('');
   const [rounds, setRounds] = useState<Record<string, number>[]>([{}]);
   const [currentRound, setCurrentRound] = useState(0);
   const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
-  const playerNameRef = useRef<HTMLInputElement | null>(null);
   const [editModeScores, setEditModeScores] = useState<Record<string, number>[] | undefined>(undefined);
+  const [goal, setGoal] = useState(301);
 
   const totals = rounds.reduce<Record<string, number>>(
     (acc, round) => {
@@ -29,14 +31,16 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
       return acc;
     }, {}),
   );
-  const remainingPlayers = players.filter((player) => totals[player] !== GOAL);
+  const remainingPlayers = players.filter((player) => totals[player] !== goal);
   const currentPlayer = remainingPlayers[currentPlayerIdx];
 
-  const addPlayer = (evt: FormEvent) => {
-    evt.preventDefault();
-    setPlayers([...players, newPlayer]);
-    setNewPlayer('');
-    playerNameRef.current?.focus();
+  const addPlayer = (evt: ChangeEvent<HTMLSelectElement>) => {
+    if (evt.target.value) {
+      if (!players.includes(evt.target.value)) {
+        setPlayers([...players, evt.target.value]);
+      }
+      evt.target.value = '';
+    }
   };
 
   const saveScore = (_newScore: number) => {
@@ -45,7 +49,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
     setSaving(true);
     const newRounds = [...rounds];
-    const newScore = totals[currentPlayer] + _newScore > GOAL ? 0 : _newScore;
+    const newScore = totals[currentPlayer] + _newScore > goal ? 0 : _newScore;
     newRounds[currentRound][currentPlayer] = newScore;
     setScore(0);
     if (currentPlayerIdx >= remainingPlayers.length - 1) {
@@ -53,7 +57,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
       setCurrentRound(currentRound + 1);
       setRounds([...newRounds, {}]);
     } else {
-      if (totals[currentPlayer] + newScore !== GOAL) {
+      if (totals[currentPlayer] + newScore !== goal) {
         setCurrentPlayerIdx(currentPlayerIdx + 1);
       }
       setRounds(newRounds);
@@ -113,13 +117,37 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
   };
 
+  const saveGame = async () => {
+    if (!selectedLeague) {
+      return;
+    }
+    setSaving(true);
+    await API.post('leagues', `/leagues/${selectedLeague.leagueKey}/games`, {
+      body: {
+        goal,
+        players,
+        rounds,
+      },
+    });
+
+    setRounds([{}]);
+    setSaving(false);
+  };
+
   return (
     <>
+      {Object.keys(rounds[0]).length === 0 && (
+        <div>
+          Goal: <input type="number" value={goal} onChange={(evt) => setGoal(parseInt(evt.target.value))} />
+        </div>
+      )}
       <div>
-        <form onSubmit={addPlayer}>
-          <input ref={playerNameRef} type="text" value={newPlayer} onChange={(evt) => setNewPlayer(evt.target.value)} />
-          <input type="submit" value="Add player" />
-        </form>
+        <select onChange={addPlayer}>
+          <option value="">Add player</option>
+          {selectedLeague?.membership.map((member) => (
+            <option key={member.email}>{member.email}</option>
+          ))}
+        </select>
       </div>
       <div style={{ display: 'flex', gap: 20, marginTop: 20 }}>
         <div style={{ flex: '1 0 auto' }}>
@@ -149,18 +177,26 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                 <td style={{ fontWeight: 'bold' }}>Total</td>
                 {players.map((player) => (
                   <td key={player} style={{ fontWeight: 'bold' }}>
-                    {GOAL - totals[player]}
+                    {goal - totals[player]}
                   </td>
                 ))}
               </tr>
             </tfoot>
           </table>
-          <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
-          {editModeScores && <input type="button" onClick={() => setEditModeScores(undefined)} value="Cancel" />}
+          <div style={{ marginTop: 5 }}>
+            <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
+            {editModeScores && <input type="button" onClick={() => setEditModeScores(undefined)} value="Cancel" />}
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <input type="button" onClick={saveGame} value="Save game" style={{ fontSize: 20 }} disabled={saving} />
+            <br />
+            Save results whenever game is completed
+          </div>
         </div>
         <div style={{ flex: '1 0 auto' }}>
-          <h2>Current player: {currentPlayer ?? 'None'}</h2>
+          <h2>Current player: {currentPlayer ?? ''}</h2>
           <h2>Current round: {currentRound + 1}</h2>
+          <h2>Remaining: {totals[currentPlayer] ? goal - totals[currentPlayer] : ''}</h2>
           <DartboardWrapper size={400} onClick={handleDartboardClick} />
           <div style={{ marginTop: 20 }}>
             <form onSubmit={addScore}>

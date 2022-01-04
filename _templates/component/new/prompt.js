@@ -13,6 +13,8 @@ module.exports = [
       'scoreboard',
       'shared',
       'layout',
+      'leagues',
+      'form',
       // leave this line - injected features automatically inserted above this line
     ],
   },
