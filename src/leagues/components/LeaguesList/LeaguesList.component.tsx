@@ -1,7 +1,6 @@
 import { useState, FC } from 'react';
 import { API } from 'aws-amplify';
 import { useDispatch, useSelector } from 'react-redux';
-import { useHistory } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -42,7 +41,6 @@ export interface LeaguesListProps {}
 
 export const LeaguesList: FC<LeaguesListProps> = () => {
   const dispatch = useDispatch();
-  const history = useHistory();
   const classes = useStyles();
 
   const [selectingLeague, setSelectingLeague] = useState<string | null>(null);

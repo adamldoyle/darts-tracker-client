@@ -15,7 +15,6 @@ import {
   makeStyles,
 } from '@material-ui/core';
 import MenuIcon from '@material-ui/icons/Menu';
-import EventIcon from '@material-ui/icons/Event';
 import AddCircleOutlineIcon from '@material-ui/icons/AddCircleOutline';
 import SwapHorizIcon from '@material-ui/icons/SwapHoriz';
 import ExitToAppIcon from '@material-ui/icons/ExitToApp';
