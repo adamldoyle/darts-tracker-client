@@ -157,7 +157,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                 <td></td>
                 {players.map((player) => (
                   <td key={player} style={{ fontWeight: 'bold' }}>
-                    {player}
+                    {player.split('.')[0]}
                   </td>
                 ))}
               </tr>
@@ -194,7 +194,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           </div>
         </div>
         <div style={{ flex: '1 0 auto' }}>
-          <h2>Current player: {currentPlayer ?? ''}</h2>
+          <h2>Current player: {currentPlayer?.split('.')[0] ?? ''}</h2>
           <h2>Current round: {currentRound + 1}</h2>
           <h2>Remaining: {totals[currentPlayer] ? goal - totals[currentPlayer] : ''}</h2>
           <DartboardWrapper size={400} onClick={handleDartboardClick} />
