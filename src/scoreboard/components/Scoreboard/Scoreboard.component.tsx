@@ -118,6 +118,9 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   };
 
   const saveGame = async () => {
+    if (!window.confirm('Are you sure you want to save the game?')) {
+      return;
+    }
     if (!selectedLeague) {
       return;
     }
