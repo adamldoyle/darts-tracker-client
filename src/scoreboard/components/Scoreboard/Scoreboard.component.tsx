@@ -187,6 +187,8 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
             <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
             {editModeScores && <input type="button" onClick={() => setEditModeScores(undefined)} value="Cancel" />}
           </div>
+          <br />
+          <br />
           <div style={{ marginTop: 10 }}>
             <input type="button" onClick={saveGame} value="Save game" style={{ fontSize: 20 }} disabled={saving} />
             <br />
