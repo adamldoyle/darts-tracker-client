@@ -183,13 +183,12 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
               </tr>
             </tfoot>
           </table>
-          <div style={{ marginTop: 5 }}>
+          <div style={{ marginTop: 5, marginBottom: 20 }}>
             <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
             {editModeScores && <input type="button" onClick={() => setEditModeScores(undefined)} value="Cancel" />}
           </div>
-          <br />
-          <br />
-          <div style={{ marginTop: 10 }}>
+          <hr />
+          <div style={{ marginTop: 30 }}>
             <input type="button" onClick={saveGame} value="Save game" style={{ fontSize: 20 }} disabled={saving} />
             <br />
             Save results whenever game is completed
