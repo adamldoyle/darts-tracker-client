@@ -3,6 +3,7 @@ import { API } from 'aws-amplify';
 import { useSelector } from 'react-redux';
 import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
+import StarIcon from '@material-ui/icons/Star';
 
 export interface ScoreboardProps {}
 
@@ -134,6 +135,13 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     setSaving(false);
   };
 
+  const isLeader = (player: string) => {
+    let highestScore = Math.max(...Object.entries(totals)
+      .filter(([play, score]) => play !== player)
+      .map(([play, score]) => score));
+    return totals[player] > highestScore;
+  };
+
   return (
     <>
       {Object.keys(rounds[0]).length === 0 && (
@@ -158,6 +166,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                 {players.map((player) => (
                   <td key={player} style={{ fontWeight: 'bold' }}>
                     {player.split('.')[0]}
+                    <StarIcon style={{ color: 'gold', opacity: isLeader(player) ? 1 : 0 }} />
                   </td>
                 ))}
               </tr>
