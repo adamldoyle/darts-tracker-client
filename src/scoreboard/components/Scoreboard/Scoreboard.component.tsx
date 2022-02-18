@@ -108,10 +108,13 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
   };
 
-  const toggleEditMode = () => {
+  const toggleEditMode = (cancel: boolean = false) => {
     if (editModeScores) {
-      setRounds(editModeScores);
+      if (!cancel) {
+        setRounds(editModeScores);
+      }
       setEditModeScores(undefined);
+      scoreRef.current?.focus();
     } else {
       setEditModeScores(rounds.map((round) => ({ ...round })));
     }
@@ -184,8 +187,8 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
             </tfoot>
           </table>
           <div style={{ marginTop: 5 }}>
-            <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
-            {editModeScores && <input type="button" onClick={() => setEditModeScores(undefined)} value="Cancel" />}
+            <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
+            {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
           </div>
           <div style={{ marginTop: 10 }}>
             <input type="button" onClick={saveGame} value="Save game" style={{ fontSize: 20 }} disabled={saving} />
