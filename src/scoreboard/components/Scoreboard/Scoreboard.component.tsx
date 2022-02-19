@@ -165,8 +165,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                 <td></td>
                 {players.map((player) => (
                   <td key={player} style={{ fontWeight: 'bold' }}>
-                    {player.split('.')[0]}
-                    <StarIcon style={{ color: 'gold', opacity: isLeader(player) ? 1 : 0 }} />
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {player.split('.')[0]}
+                      {isLeader(player) && <StarIcon style={{ color: 'gold' }} />}
+                    </div>
                   </td>
                 ))}
               </tr>
