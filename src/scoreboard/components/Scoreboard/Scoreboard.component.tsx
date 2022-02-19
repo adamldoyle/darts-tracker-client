@@ -190,7 +190,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
             </tfoot>
           </table>
           <div style={{ marginTop: 5, marginBottom: 20 }}>
-            <input type="button" onClick={toggleEditMode} value={editModeScores ? 'Save changes' : 'Oops'} />
+            <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
             {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
           </div>
           <hr />
