@@ -121,6 +121,9 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   };
 
   const saveGame = async () => {
+    if (!window.confirm('Are you sure you want to save the game?')) {
+      return;
+    }
     if (!selectedLeague) {
       return;
     }
@@ -186,11 +189,12 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
               </tr>
             </tfoot>
           </table>
-          <div style={{ marginTop: 5 }}>
+          <div style={{ marginTop: 5, marginBottom: 20 }}>
             <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
             {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
           </div>
-          <div style={{ marginTop: 10 }}>
+          <hr />
+          <div style={{ marginTop: 30 }}>
             <input type="button" onClick={saveGame} value="Save game" style={{ fontSize: 20 }} disabled={saving} />
             <br />
             Save results whenever game is completed
