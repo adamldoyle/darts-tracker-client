@@ -77,7 +77,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   useEffect(() => {
     scoreRef.current?.focus();
-  }, [scoreRef.current]);
+  }, [gameConfig]);
 
   if (!gameConfig) {
     return (
