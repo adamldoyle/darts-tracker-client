@@ -7,7 +7,7 @@ export function handleRootErrors<Values>(onSubmit: (values: Values, actions: For
     actions.setFieldError('_root', '');
     try {
       await onSubmit(values, actions);
-    } catch (err) {
+    } catch (err: any) {
       actions.setFieldError('_root', err.message);
     }
   };

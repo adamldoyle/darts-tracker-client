@@ -18,7 +18,7 @@ import MenuIcon from '@material-ui/icons/Menu';
 import AddCircleOutlineIcon from '@material-ui/icons/AddCircleOutline';
 import SwapHorizIcon from '@material-ui/icons/SwapHoriz';
 import ExitToAppIcon from '@material-ui/icons/ExitToApp';
-import { AuthContext } from '@adamldoyle/react-aws-auth-context';
+import { AuthContext } from '@adamldoyle/react-aws-auth-context-core';
 import { selectors } from 'store/leagues/slice';
 
 const useStyles = makeStyles((theme) => ({

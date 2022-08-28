@@ -2,15 +2,20 @@
 # yarn lockfile v1
 
 
-"@adamldoyle/react-aws-auth-context@^1.3.1":
-  version "1.3.1"
-  resolved "https://registry.yarnpkg.com/@adamldoyle/react-aws-auth-context/-/react-aws-auth-context-1.3.1.tgz#00fd0df006ec66a0ed517ddf495189dfa74b3769"
-  integrity sha512-dINXPvhkfaq+LPPd/lJp0B6wE6jJINw+Lk00uWFUkXOJWBrFEjfcl7n4aqVAsKd9KSjWdOfwYEUxbQuhY7j4Cw==
-
-"@adamldoyle/react-aws-auth-redux-slice@^1.0.0":
+"@adamldoyle/react-aws-auth-context-core@^1.0.0":
   version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@adamldoyle/react-aws-auth-redux-slice/-/react-aws-auth-redux-slice-1.0.0.tgz#4fdf8d7d3db397c7f59971f1676aad065a94787a"
-  integrity sha512-u6KNBhRFE7uUUYxekAIVpPuUgV0+8lOug6tR9HPwADcdclnPLFtBpglVVThN194T+nlj50etSkFwXhtRpCYjug==
+  resolved "https://registry.yarnpkg.com/@adamldoyle/react-aws-auth-context-core/-/react-aws-auth-context-core-1.0.0.tgz#0e21afb5ec69842556f8fbb13d781893fe88ec8f"
+  integrity sha512-Ohw3ndQ//nNwyool7+vhR3+5b+zGCRhJnwRuoO9nbU70Zz97jtYk6ua/BLUp8oCYHt05F39ivwUJfzx8jqeZtA==
+
+"@adamldoyle/react-aws-auth-context-mui-formik@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@adamldoyle/react-aws-auth-context-mui-formik/-/react-aws-auth-context-mui-formik-1.0.0.tgz#74a552e16c9c5d4af8d46000c83b2d4f33a095bf"
+  integrity sha512-jRoAc1ufFa4jeGPe8RV/FdK0n1kBjKOzU9Vf1M0xrlvFOjbUIgfwkbgSNaCQcRJIo+II71ImR2OKRlWJJ01brA==
+
+"@adamldoyle/react-aws-auth-redux-slice@^2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@adamldoyle/react-aws-auth-redux-slice/-/react-aws-auth-redux-slice-2.0.0.tgz#1bad822ebcba1ae019ad4a5364e4444000630a85"
+  integrity sha512-CeC6wLX+xVk+8ZgsCGU2sKbeMAgqd0t7jXp8xRrUo/CQq9TFIBqvDalNmw6sOg5KIaLnKa03eW8BQQVZQkbQ/A==
 
 "@adamldoyle/reduxjs-toolkit-monitored-slice@^1.1.0":
   version "1.1.0"
@@ -5140,6 +5145,18 @@
   resolved "https://registry.yarnpkg.com/@types/json5/-/json5-0.0.29.tgz#ee28707ae94e11d2b827bcbe5270bcea7f3e71ee"
   integrity sha1-7ihweulOEdK4J7y+UnC86n8+ce4=
 
+"@types/lodash.shuffle@^4.2.7":
+  version "4.2.7"
+  resolved "https://registry.yarnpkg.com/@types/lodash.shuffle/-/lodash.shuffle-4.2.7.tgz#b714d829af948a266b0df1477d629c70de2f4c72"
+  integrity sha512-b+K0NBpB4WcNoQTfifuTmi5nm5mJXRw9DBdbFfBr1q1+EVoTKkClDxq/7r1sq2GZcRelMFRsFcGGHrHQgxRySg==
+  dependencies:
+    "@types/lodash" "*"
+
+"@types/lodash@*":
+  version "4.14.184"
+  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.184.tgz#23f96cd2a21a28e106dc24d825d4aa966de7a9fe"
+  integrity sha512-RoZphVtHbxPZizt4IcILciSWiC6dcn+eZ8oX9IWEYfDMcocdd42f7NPI6fQj+6zI8y4E0L7gu2pcZKLGTRaV9Q==
+
 "@types/lodash@^4.14.165":
   version "4.14.170"
   resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.170.tgz#0d67711d4bf7f4ca5147e9091b847479b87925d6"
@@ -5380,6 +5397,11 @@
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/@types/unist/-/unist-2.0.3.tgz#9c088679876f374eb5983f150d4787aa6fb32d7e"
   integrity sha512-FvUupuM3rlRsRtCN+fDudtmytGO6iHJuuRKS1Ss0pG5z8oX0diNEw94UEL7hgDbpN94rgaK5R7sWm6RrSkZuAQ==
+
+"@types/uuid@^8.3.4":
+  version "8.3.4"
+  resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-8.3.4.tgz#bd86a43617df0594787d38b735f55c805becf1bc"
+  integrity sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==
 
 "@types/webpack-env@^1.16.0":
   version "1.16.0"
@@ -12076,6 +12098,11 @@ lodash.memoize@^4.1.2:
   resolved "https://registry.yarnpkg.com/lodash.memoize/-/lodash.memoize-4.1.2.tgz#bcc6c49a42a2840ed997f323eada5ecd182e0bfe"
   integrity sha1-vMbEmkKihA7Zl/Mj6tpezRguC/4=
 
+lodash.shuffle@^4.2.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/lodash.shuffle/-/lodash.shuffle-4.2.0.tgz#145b5053cf875f6f5c2a33f48b6e9948c6ec7b4b"
+  integrity sha512-V/rTAABKLFjoecTZjKSv+A1ZomG8hZg8hlgeG6wwQVD9AGv+10zqqSf6mFq2tVA703Zd5R0YhSuSlXA+E/Ei+Q==
+
 lodash.sortby@^4.7.0:
   version "4.7.0"
   resolved "https://registry.yarnpkg.com/lodash.sortby/-/lodash.sortby-4.7.0.tgz#edd14c824e2cc9c1e0b0a1b42bb5210516a42438"
@@ -17271,7 +17298,7 @@ uuid@3.3.2:
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.3.2.tgz#1b4af4955eb3077c501c23872fc6513811587131"
   integrity sha512-yXJmeNaw3DnnKAOKJE51sL/ZaYfWJRl1pK9dr19YFCu0ObS231AB1/LbqTKRAQ5kw8A90rA6fr4riOUpTZvQZA==
 
-uuid@^3.0.0, uuid@^3.2.1, uuid@^3.3.2, uuid@^3.4.0:
+uuid@^3.0.0, uuid@^3.2.1, uuid@^3.3.2, uuid@^3.3.3, uuid@^3.4.0:
   version "3.4.0"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.4.0.tgz#b23e4358afa8a202fe7a100af1f5f883f02007ee"
   integrity sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==
