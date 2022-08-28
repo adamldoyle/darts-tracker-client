@@ -7,7 +7,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { CssBaseline, Container } from '@material-ui/core';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { AuthContextProvider } from '@adamldoyle/react-aws-auth-context';
+import { AuthContextProvider } from '@adamldoyle/react-aws-auth-context-mui-formik';
 import { reportWebVitals } from './reportWebVitals';
 import { error, aws } from 'shared/utils';
 import { store } from './store/configureStore';
