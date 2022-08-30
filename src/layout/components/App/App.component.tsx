@@ -5,7 +5,7 @@ import { Box, makeStyles, Hidden } from '@material-ui/core';
 import { selectors } from 'store/leagues/slice';
 import { LeaguesList } from 'leagues/components';
 import { Scoreboard } from 'scoreboard/components';
-import { CreateGamePage } from 'games/components';
+import { CreateGamePage, GamesListPage } from 'games/components';
 import { AppToolbar } from '../AppToolbar';
 import { QuickBar } from '../QuickBar';
 
@@ -28,6 +28,7 @@ const AppContents: FC = () => {
   return (
     <Switch>
       <Route path="/leagues" component={LeaguesList} />
+      <Route path="/games" exact component={GamesListPage} />
       <Route path="/game/:gameId" exact component={Scoreboard} />
       <Route path="/game" exact component={CreateGamePage} />
     </Switch>

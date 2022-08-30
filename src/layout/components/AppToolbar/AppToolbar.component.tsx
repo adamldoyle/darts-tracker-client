@@ -14,10 +14,13 @@ import {
   SwipeableDrawer,
   makeStyles,
 } from '@material-ui/core';
-import MenuIcon from '@material-ui/icons/Menu';
-import AddCircleOutlineIcon from '@material-ui/icons/AddCircleOutline';
-import SwapHorizIcon from '@material-ui/icons/SwapHoriz';
-import ExitToAppIcon from '@material-ui/icons/ExitToApp';
+import {
+  Menu as MenuIcon,
+  AddCircleOutline as AddCircleOutlineIcon,
+  SwapHoriz as SwapHorizIcon,
+  ExitToApp as ExitToAppIcon,
+  List as ListIcon,
+} from '@material-ui/icons';
 import { AuthContext } from '@adamldoyle/react-aws-auth-context-core';
 import { selectors } from 'store/leagues/slice';
 
@@ -97,7 +100,8 @@ export const AppToolbar: FC<AppToolbarProps> = () => {
               <Divider />
             </>
           )}
-          <MenuLink title="Game" to="/game" Icon={AddCircleOutlineIcon} disabled={selectedLeague === null} />
+          <MenuLink title="New game" to="/game" Icon={AddCircleOutlineIcon} disabled={selectedLeague === null} />
+          <MenuLink title="Games" to="/games" Icon={ListIcon} disabled={selectedLeague === null} />
           <Divider />
           <MenuLink title="Change league" to="/leagues" Icon={SwapHorizIcon} />
           <Divider />

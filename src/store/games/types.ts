@@ -11,6 +11,7 @@ export interface IPlayerGameStats {
 }
 
 export interface IGameConfig {
+  datePlayed: number;
   players: string[];
   goal: number;
 }
@@ -30,6 +31,7 @@ export interface IGame {
   leagueKey: string;
   gameId: string;
   data: IGameData;
+  createdAt: number;
   updatedAt: number;
 }
 
