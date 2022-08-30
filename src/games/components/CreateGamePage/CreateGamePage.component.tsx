@@ -10,6 +10,8 @@ import shuffle from 'lodash.shuffle';
 import { handleRootErrors, RootError, InputField, SelectField, CheckboxField } from 'form/components';
 import { useDelayedFormValidation } from 'form/hooks';
 import { selectors } from 'store/leagues/slice';
+import { IGameData } from 'store/games/types';
+import { calculatePlayerStats } from 'store/games/helpers';
 
 const Schema = Yup.object({
   goal: Yup.number().required('Goal is required').min(1).default(301),
@@ -41,12 +43,17 @@ export const CreateGamePage: FC<CreateGamePageProps> = () => {
       validationSchema={Schema}
       onSubmit={handleRootErrors(async (values) => {
         const saveGameId = uuid();
-        await API.put('leagues', `/leagues/${selectedLeague?.leagueKey}/games/${saveGameId}`, {
-          body: {
+        const gameData: IGameData = {
+          config: {
             goal: values.goal,
             players: values.randomize ? shuffle([...values.players]) : values.players,
-            rounds: [{}],
           },
+          rounds: [{}],
+          playerStats: {},
+        };
+        calculatePlayerStats(gameData);
+        await API.put('leagues', `/leagues/${selectedLeague?.leagueKey}/games/${saveGameId}`, {
+          body: gameData,
         });
 
         history.replace(`/game/${saveGameId}`);
