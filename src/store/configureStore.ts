@@ -3,10 +3,12 @@ import { persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } fro
 import storage from 'redux-persist/lib/storage';
 import { reducer as authReducer } from './auth/slice';
 import { reducer as leaguesReducer } from './leagues/slice';
+import { reducer as leagueGamesReducer } from './games/slice';
 
 export const rootReducer = combineReducers({
   auth: authReducer,
   leagues: leaguesReducer,
+  games: leagueGamesReducer,
 });
 const persistedReducer = persistReducer(
   {
