@@ -5,46 +5,17 @@ import { useSelector } from 'react-redux';
 import { Box, CircularProgress } from '@material-ui/core';
 import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
-
-interface PlayerGameStats {
-  email: string;
-  total: number;
-  remaining: number;
-  roundsPlayed: number;
-  ranking: number;
-}
-
-interface GameConfig {
-  players: string[];
-  goal: number;
-}
-
-type Rounds = Record<string, number>[];
+import { IGameData, IRounds } from 'store/games/types';
+import { buildGameData, comparePlayerStats } from 'store/games/helpers';
 
 export interface ScoreboardProps {}
 
-const comparePlayerStats = (player1Stats: PlayerGameStats, player2Stats: PlayerGameStats): -1 | 0 | 1 => {
-  if (player1Stats.total > player2Stats.total) {
-    return -1;
-  }
-  if (player1Stats.total < player2Stats.total) {
-    return 1;
-  }
-  if (player1Stats.roundsPlayed < player2Stats.roundsPlayed) {
-    return -1;
-  }
-  return 0;
-};
-
-const saveGame = async (leagueKey: string | undefined, gameId: string, gameConfig: GameConfig, rounds: Rounds) => {
+const saveGame = async (leagueKey: string | undefined, gameId: string, gameData: IGameData) => {
   if (!leagueKey) {
     return;
   }
   await API.put('leagues', `/leagues/${leagueKey}/games/${gameId}`, {
-    body: {
-      ...gameConfig,
-      rounds,
-    },
+    body: gameData,
   });
 };
 
@@ -54,32 +25,27 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const selectedLeague = useSelector(selectors.selectSelectedLeague);
 
-  const [gameConfig, setGameConfig] = useState<GameConfig>();
-  const [rounds, setRounds] = useState<Rounds>([{}]);
+  const [gameData, setGameData] = useState<IGameData | undefined>();
   const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
-  const [editModeScores, setEditModeScores] = useState<Rounds | undefined>();
-
-  const currentRound = rounds.length - 1;
+  const [editModeScores, setEditModeScores] = useState<IRounds | undefined>();
 
   useEffect(() => {
     if (gameId && selectedLeague) {
       (async () => {
         const { game } = await API.get('leagues', `/leagues/${selectedLeague.leagueKey}/games/${gameId}`, {});
-        setGameConfig({ players: game.data.players, goal: game.data.goal });
-        setRounds(game.data.rounds);
-        setCurrentPlayerIdx(Object.keys(game.data.rounds[game.data.rounds.length - 1]).length);
+        setGameData(game.data);
       })();
     }
   }, [gameId, selectedLeague]);
 
   useEffect(() => {
     scoreRef.current?.focus();
-  }, [gameConfig]);
+  }, [gameData]);
 
-  if (!gameConfig) {
+  if (!gameData) {
     return (
       <Box display="flex" justifyContent="center">
         <CircularProgress size={100} />
@@ -87,28 +53,11 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     );
   }
 
-  const playerStats = rounds.reduce<Record<string, PlayerGameStats>>(
-    (acc, round) => {
-      Object.entries(round).forEach((playerEntry) => {
-        acc[playerEntry[0]].total = acc[playerEntry[0]].total + Math.max(playerEntry[1], 0);
-        acc[playerEntry[0]].remaining = gameConfig.goal - acc[playerEntry[0]].total;
-        acc[playerEntry[0]].roundsPlayed++;
-      });
-      return acc;
-    },
-    gameConfig.players.reduce<Record<string, PlayerGameStats>>((acc, player) => {
-      acc[player] = { email: player, total: 0, remaining: gameConfig.goal, roundsPlayed: 0, ranking: 0 };
-      return acc;
-    }, {}),
-  );
+  const gameConfig = gameData.config;
+  const rounds = gameData.rounds;
+  const currentRound = rounds.length - 1;
+  const playerStats = gameData.playerStats;
   const sortedPlayers = Object.values(playerStats).sort(comparePlayerStats);
-  for (let i = 0; i < sortedPlayers.length; i++) {
-    if (i > 0 && comparePlayerStats(sortedPlayers[i - 1], sortedPlayers[i]) === 0) {
-      sortedPlayers[i].ranking = sortedPlayers[i - 1].ranking;
-    } else {
-      sortedPlayers[i].ranking = i + 1;
-    }
-  }
 
   const remainingPlayers = gameConfig.players.filter((player) => playerStats[player].remaining !== 0);
   const currentPlayer = remainingPlayers[currentPlayerIdx];
@@ -131,10 +80,12 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
         setCurrentPlayerIdx(currentPlayerIdx + 1);
       }
     }
-    setRounds(newRounds);
+
+    const newGameData = buildGameData(gameData.config, newRounds);
+    setGameData(newGameData);
     setScore(0);
     scoreRef.current?.focus();
-    await saveGame(selectedLeague?.leagueKey, gameId, gameConfig, newRounds);
+    await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
     setSaving(false);
   };
 
@@ -181,8 +132,9 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     if (editModeScores) {
       if (!cancel) {
         setSaving(true);
-        setRounds(editModeScores);
-        await saveGame(selectedLeague?.leagueKey, gameId, gameConfig, editModeScores);
+        const newGameData = buildGameData(gameData.config, editModeScores);
+        setGameData(newGameData);
+        await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
         setSaving(false);
       }
       setEditModeScores(undefined);
@@ -206,6 +158,17 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     );
   };
 
+  const playerEmoji = (player: string) => {
+    if (isWinner(player)) {
+      return <>&#128081;</>;
+    } else if (isLeader(player)) {
+      return <>&#11088;</>;
+    } else if (isLoser(player)) {
+      return <>&#128169;</>;
+    }
+    return null;
+  };
+
   return (
     <div style={{ display: 'flex', gap: 20, marginTop: 20 }}>
       <div style={{ flex: '1 0 auto' }}>
@@ -217,10 +180,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
               {gameConfig.players.map((player) => (
                 <td key={player} style={{ fontWeight: 'bold' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    {player.split('.')[0]}
-                    {isWinner(player) && <>&#128081;</>}
-                    {isLeader(player) && <>&#11088;</>}
-                    {isLoser(player) && <>&#128169;</>}
+                    {player.split('.')[0]} {playerEmoji(player)}
                   </div>
                 </td>
               ))}
@@ -286,10 +246,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           <h2>Rankings</h2>
           {sortedPlayers.map((sortedPlayer) => (
             <h3 key={sortedPlayer.email}>
-              {sortedPlayer.ranking}. {sortedPlayer.email.split('.')[0]}
-              {isWinner(sortedPlayer.email) && <>&#128081;</>}
-              {isLeader(sortedPlayer.email) && <>&#11088;</>}
-              {isLoser(sortedPlayer.email) && <>&#128169;</>}
+              {sortedPlayer.ranking}. {sortedPlayer.email.split('.')[0]} {playerEmoji(sortedPlayer.email)}
             </h3>
           ))}
         </div>
