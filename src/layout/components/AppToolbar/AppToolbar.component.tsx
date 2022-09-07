@@ -20,6 +20,7 @@ import {
   SwapHoriz as SwapHorizIcon,
   ExitToApp as ExitToAppIcon,
   List as ListIcon,
+  Equalizer as EqualizerIcon,
 } from '@material-ui/icons';
 import { AuthContext } from '@adamldoyle/react-aws-auth-context-core';
 import { selectors } from 'store/leagues/slice';
@@ -102,6 +103,8 @@ export const AppToolbar: FC<AppToolbarProps> = () => {
           )}
           <MenuLink title="New game" to="/game" Icon={AddCircleOutlineIcon} disabled={selectedLeague === null} />
           <MenuLink title="Games" to="/games" Icon={ListIcon} disabled={selectedLeague === null} />
+          <Divider />
+          <MenuLink title="Stats" to="/stats" Icon={EqualizerIcon} disabled={selectedLeague === null} />
           <Divider />
           <MenuLink title="Change league" to="/leagues" Icon={SwapHorizIcon} />
           <Divider />

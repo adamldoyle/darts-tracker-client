@@ -8,6 +8,7 @@ import { Scoreboard } from 'scoreboard/components';
 import { CreateGamePage, GamesListPage } from 'games/components';
 import { AppToolbar } from '../AppToolbar';
 import { QuickBar } from '../QuickBar';
+import { StatsPage } from 'stats/components';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -31,6 +32,7 @@ const AppContents: FC = () => {
       <Route path="/games" exact component={GamesListPage} />
       <Route path="/game/:gameId" exact component={Scoreboard} />
       <Route path="/game" exact component={CreateGamePage} />
+      <Route path="/stats" exact component={StatsPage} />
     </Switch>
   );
 };
