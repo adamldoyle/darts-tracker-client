@@ -20,8 +20,6 @@ export type IRounds = Record<string, number>[];
 export type IAllPlayerGameStats = Record<string, IPlayerGameStats>;
 
 export interface IGameData {
-  players?: string[];
-  goal?: number;
   config: IGameConfig;
   rounds: IRounds;
   playerStats: IAllPlayerGameStats;

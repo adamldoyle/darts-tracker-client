@@ -16,6 +16,7 @@ module.exports = [
       'leagues',
       'form',
       'games',
+      'stats',
       // leave this line - injected features automatically inserted above this line
     ],
   },

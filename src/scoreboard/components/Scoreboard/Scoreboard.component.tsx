@@ -7,10 +7,12 @@ import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 import { IGameData, IRounds } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
+import { formatDivision } from 'shared/utils/numbers';
+import { hooks as gameHooks } from 'store/games/slice';
 
 export interface ScoreboardProps {}
 
-const saveGame = async (leagueKey: string | undefined, gameId: string, gameData: IGameData) => {
+export const saveGame = async (leagueKey: string | undefined, gameId: string, gameData: IGameData) => {
   if (!leagueKey) {
     return;
   }
@@ -24,6 +26,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const gameId = params.gameId;
 
   const selectedLeague = useSelector(selectors.selectSelectedLeague);
+  const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
   const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
@@ -86,6 +89,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     setScore(0);
     scoreRef.current?.focus();
     await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
+    makeGamesStale();
     setSaving(false);
   };
 
@@ -135,6 +139,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
         const newGameData = buildGameData(gameData.config, editModeScores);
         setGameData(newGameData);
         await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
+        makeGamesStale();
         setSaving(false);
       }
       setEditModeScores(undefined);
@@ -202,6 +207,16 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
               {gameConfig.players.map((player) => (
                 <td key={player} style={{ fontWeight: 'bold' }}>
                   {playerStats[player].remaining}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td style={{ fontWeight: 'bold' }}>Average</td>
+              {gameConfig.players.map((player) => (
+                <td key={player}>
+                  {playerStats[player].roundsPlayed
+                    ? formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1)
+                    : ''}
                 </td>
               ))}
             </tr>

@@ -2,7 +2,11 @@ import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { BottomNavigation, BottomNavigationAction, makeStyles } from '@material-ui/core';
-import { AddCircleOutline as AddCircleOutlineIcon, List as ListIcon } from '@material-ui/icons';
+import {
+  AddCircleOutline as AddCircleOutlineIcon,
+  List as ListIcon,
+  Equalizer as EqualizerIcon,
+} from '@material-ui/icons';
 import { selectors } from 'store/leagues/slice';
 
 const useStyles = makeStyles((theme) => ({
@@ -41,6 +45,15 @@ export const QuickBar: FC<QuickBarProps> = () => {
         value="games"
         label="Games"
         icon={<ListIcon />}
+        disabled={selectedLeague === null}
+        className={selectedLeague === null ? classes.disabledAction : undefined}
+      />
+      <BottomNavigationAction
+        component={Link}
+        to="/stats"
+        value="stats"
+        label="Stats"
+        icon={<EqualizerIcon />}
         disabled={selectedLeague === null}
         className={selectedLeague === null ? classes.disabledAction : undefined}
       />
