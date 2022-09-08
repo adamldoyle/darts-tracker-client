@@ -93,7 +93,7 @@ export const AppToolbar: FC<AppToolbarProps> = () => {
         <List>
           {selectedLeague && (
             <>
-              <ListItem>
+              <ListItem button component={RouterLink} to="/">
                 <Typography variant="h6" component="h2">
                   {selectedLeague.name}
                 </Typography>
