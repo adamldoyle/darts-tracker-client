@@ -1,3 +1,4 @@
+export * from './EloHistoryPage';
 export * from './RankingCard';
 export * from './EloCard';
 export * from './BestScoreToCloseCard';

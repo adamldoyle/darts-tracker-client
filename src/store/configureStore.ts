@@ -15,7 +15,7 @@ const persistedReducer = persistReducer(
     key: 'root',
     version: 1,
     storage,
-    blacklist: ['auth'],
+    blacklist: ['auth', 'games'],
   },
   rootReducer,
 );

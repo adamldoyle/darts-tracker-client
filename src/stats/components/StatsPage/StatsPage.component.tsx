@@ -1,5 +1,6 @@
 import { Box, CircularProgress } from '@material-ui/core';
 import { FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { hooks } from 'store/games/slice';
 import { selectors } from 'store/leagues/slice';
@@ -20,6 +21,7 @@ import { EloCard } from '../EloCard';
 export interface StatsPageProps {}
 
 export const StatsPage: FC<StatsPageProps> = () => {
+  const history = useHistory();
   const selectedLeague = useSelector(selectors.selectSelectedLeague);
   const { loading: gamesLoading } = hooks.useMonitoredData();
 
@@ -33,7 +35,7 @@ export const StatsPage: FC<StatsPageProps> = () => {
 
   return (
     <Box display="flex" flexWrap="wrap" gridGap={8}>
-      <EloCard />
+      <EloCard onClick={() => history.push('/stats/elo')} />
       <WinPercentCard />
       <AverageRoundScoreCard />
       <AverageRoundsPlayedCard />

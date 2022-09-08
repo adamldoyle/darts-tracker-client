@@ -125,21 +125,25 @@ const selectTotalWins = createSelector(baseSelectors.selectData, (games) => {
   }, {});
 });
 
-const selectElos = createSelector(baseSelectors.selectData, (games) => {
+const selectEloHistory = createSelector(baseSelectors.selectData, (games) => {
   const sortedGames = [...games].sort((a, b) => (a.data.config.datePlayed < b.data.config.datePlayed ? -1 : 1));
-  const elos: Record<string, number> = {};
-  const maxElos: Record<string, number> = {};
-  sortedGames.forEach((game) => {
-    calculateGameElos(game, elos);
-    Object.entries(elos).forEach(([email, elo]) => {
-      maxElos[email] = Math.max(elo, maxElos[email] ?? 0);
-    });
+  const masterElo: Record<string, number> = {};
+  const eloHistory = sortedGames.map((game) => {
+    calculateGameElos(game, masterElo);
+    return {
+      gameId: game.gameId,
+      datePlayed: game.data.config.datePlayed,
+      elos: game.data.config.players.reduce<Record<string, number>>((acc, email) => {
+        acc[email] = formatNumber(masterElo[email], 1);
+        return acc;
+      }, {}),
+    };
   });
-  const formattedElos = Object.entries(elos).reduce<Record<string, number>>((acc, [email, elo]) => {
+  const finalElo = Object.entries(masterElo).reduce<Record<string, number>>((acc, [email, elo]) => {
     acc[email] = formatNumber(elo, 1);
     return acc;
   }, {});
-  return formattedElos;
+  return { finalElo, eloHistory };
 });
 
 const selectAverageBustsRankings = createSelector(selectTotalGames, selectTotalBusts, (totalGames, totalBusts) => {
@@ -280,8 +284,8 @@ const selectWinPercentageRankings = createSelector(selectTotalGames, selectTotal
   return rankings.map(([email, winPercentage]) => [email, `${winPercentage}%`]) as [string, string][];
 });
 
-const selectEloRankings = createSelector(selectElos, (elos) => {
-  return Object.entries(elos).sort((a, b) => (a[1] > b[1] ? -1 : 1));
+const selectEloRankings = createSelector(selectEloHistory, ({ finalElo }) => {
+  return Object.entries(finalElo).sort((a, b) => (a[1] > b[1] ? -1 : 1));
 });
 
 const actions = slice.actions;
@@ -301,5 +305,6 @@ const selectors = {
   selectTotalWinsRankings,
   selectWinPercentageRankings,
   selectEloRankings,
+  selectEloHistory,
 };
 export { selectors, actions, hooks, context, reducer };
