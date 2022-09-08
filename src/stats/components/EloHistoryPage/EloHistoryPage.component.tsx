@@ -1,6 +1,15 @@
 import { FC } from 'react';
 import { useSelector } from 'react-redux';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@material-ui/core';
+import {
+  Box,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from '@material-ui/core';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +21,8 @@ import {
   Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { hooks, selectors } from 'store/games/slice';
+import { hooks as gamesHooks, selectors as gamesSelectors } from 'store/games/slice';
+import { selectors as leagueSelectors } from 'store/leagues/slice';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -33,8 +43,17 @@ const colors = [
 export interface EloHistoryPageProps {}
 
 export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
-  const { loading: gamesLoading } = hooks.useMonitoredData();
-  const { eloHistory, finalElo } = useSelector(selectors.selectEloHistory);
+  const { loading: gamesLoading } = gamesHooks.useMonitoredData();
+  const { eloHistory, finalElo } = useSelector(gamesSelectors.selectEloHistory);
+  const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
+
+  if (gamesLoading || !selectedLeague) {
+    return (
+      <Box display="flex" justifyContent="center">
+        <CircularProgress size={100} />
+      </Box>
+    );
+  }
 
   return (
     <TableContainer>
@@ -52,13 +71,6 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
         options={{
           indexAxis: 'x',
           spanGaps: true,
-          scales: {
-            y: {
-              // beginAtZero: true,
-              // min: 0,
-              // max: 10,
-            },
-          },
         }}
       />
       <Table>
