@@ -9,6 +9,7 @@ import { IGameData, IRounds } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
 import { formatDivision } from 'shared/utils/numbers';
 import { hooks as gameHooks } from 'store/games/slice';
+import { DartsToClose } from '../DartsToClose';
 
 export interface ScoreboardProps {}
 
@@ -242,7 +243,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           <h2>Current player</h2>
           <h3>Name: {currentPlayer?.split('.')[0] ?? ''}</h3>
           <h3>Current round: {currentRound + 1}</h3>
-          <h3>Remaining: {playerStats[currentPlayer].remaining}</h3>
+          <h3>
+            Remaining: {playerStats[currentPlayer].remaining}{' '}
+            <DartsToClose remaining={playerStats[currentPlayer].remaining} />
+          </h3>
           <DartboardWrapper size={400} onClick={handleDartboardClick} />
           <div style={{ marginTop: 20 }}>
             <form onSubmit={addScore}>
