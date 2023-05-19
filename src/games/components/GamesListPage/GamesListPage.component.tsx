@@ -16,6 +16,7 @@ import { useSelector } from 'react-redux';
 import { selectors } from 'store/leagues/slice';
 import { IGame } from 'store/games/types';
 import { comparePlayerStats } from 'store/games/helpers';
+import { playerUtils } from 'shared/utils';
 
 const useStyles = makeStyles((theme) => ({
   listItem: {
@@ -38,7 +39,7 @@ const GameListItem = ({ game }: { game: IGame }) => {
       <ListItemText
         primary={`${datePlayed.toLocaleDateString()} ${datePlayed.toLocaleTimeString()}`}
         secondary={sortedPlayers
-          .map((sortedPlayer) => `${sortedPlayer.ranking}. ${sortedPlayer.email.split('.')[0]}`)
+          .map((sortedPlayer) => `${sortedPlayer.ranking}. ${playerUtils.displayName(sortedPlayer.email)}`)
           .join(', ')}
       />
       <ListItemSecondaryAction>

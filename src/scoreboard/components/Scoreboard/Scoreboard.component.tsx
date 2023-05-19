@@ -7,6 +7,7 @@ import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 import { IGameData, IRounds } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
+import { playerUtils } from 'shared/utils';
 import { formatDivision } from 'shared/utils/numbers';
 import { hooks as gameHooks } from 'store/games/slice';
 import { DartsToClose } from '../DartsToClose';
@@ -76,11 +77,6 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const newRounds = [...rounds];
     const newScore = _newScore > playerStats[currentPlayer].remaining ? -1 : _newScore;
     newRounds[currentRound][currentPlayer] = newScore;
-    setScore(0);
-    if (remainingRoundPlayers.length === 1) {
-      newRounds.push({});
-    }
-
     const newGameData = buildGameData(gameData.config, newRounds);
     setGameData(newGameData);
     setScore(0);
@@ -112,14 +108,18 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
 
     const newScores = [...editModeScores];
-    newScores[roundNum][player] = parseInt(evt.target.value || '0');
+    if (evt.target.value === '') {
+      delete newScores[roundNum][player];
+    } else {
+      newScores[roundNum][player] = parseInt(evt.target.value || '0');
+    }
     setEditModeScores(newScores);
   };
 
   const renderScore = (roundNum: number, player: string) => {
     if (editModeScores) {
       const roundScore = editModeScores[roundNum][player];
-      return <input type="number" value={roundScore} onChange={onEditScoreChange(roundNum, player)} />;
+      return <input value={roundScore} onChange={onEditScoreChange(roundNum, player)} />;
     } else {
       const roundScore = rounds[roundNum][player];
       return roundScore === -1 ? 'x' : roundScore;
@@ -179,7 +179,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
               {gameConfig.players.map((player) => (
                 <td key={player} style={{ fontWeight: 'bold' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    {player.split('.')[0]} {playerEmoji(player)}
+                    {playerUtils.displayName(player)} {playerEmoji(player)}
                   </div>
                 </td>
               ))}
@@ -224,17 +224,15 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
             </tr>
           </tfoot>
         </table>
-        {!gameOver && (
-          <div style={{ marginTop: 5 }}>
-            <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
-            {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
-          </div>
-        )}
+        <div style={{ marginTop: 5 }}>
+          <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
+          {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
+        </div>
       </div>
       {!gameOver && (
         <div style={{ flex: '1 0 auto' }}>
           <h2>Current player</h2>
-          <h3>Name: {currentPlayer?.split('.')[0] ?? ''}</h3>
+          <h3>Name: {playerUtils.displayName(currentPlayer ?? '')}</h3>
           <h3>Current round: {currentRound + 1}</h3>
           <h3>
             Remaining: {playerStats[currentPlayer].remaining}{' '}
@@ -262,7 +260,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           <h2>Rankings</h2>
           {sortedPlayers.map((sortedPlayer) => (
             <h3 key={sortedPlayer.email}>
-              {sortedPlayer.ranking}. {sortedPlayer.email.split('.')[0]} {playerEmoji(sortedPlayer.email)}
+              {sortedPlayer.ranking}. {playerUtils.displayName(sortedPlayer.email)} {playerEmoji(sortedPlayer.email)}
             </h3>
           ))}
         </div>

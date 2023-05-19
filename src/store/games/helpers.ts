@@ -58,5 +58,13 @@ export const calculatePlayerStats = (gameData: IGameData) => {
 export const buildGameData = (config: IGameConfig, rounds: IRounds): IGameData => {
   const gameData: IGameData = { config, rounds, playerStats: {} };
   calculatePlayerStats(gameData);
+  if (
+    Object.values(gameData.playerStats).find((stats) => stats.remaining > 0) &&
+    !Object.values(gameData.playerStats).find(
+      (stats) => stats.remaining > 0 && stats.roundsPlayed < gameData.rounds.length,
+    )
+  ) {
+    gameData.rounds.push({});
+  }
   return gameData;
 };
