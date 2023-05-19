@@ -30,7 +30,6 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
-  const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
@@ -63,8 +62,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const playerStats = gameData.playerStats;
   const sortedPlayers = Object.values(playerStats).sort(comparePlayerStats);
 
-  const remainingPlayers = gameConfig.players.filter((player) => playerStats[player].remaining !== 0);
-  const currentPlayer = remainingPlayers[currentPlayerIdx];
+  const remainingRoundPlayers = gameConfig.players.filter(
+    (player) => playerStats[player].remaining !== 0 && playerStats[player].roundsPlayed !== rounds.length,
+  );
+  const currentPlayer = remainingRoundPlayers[0];
   const gameOver = !currentPlayer;
 
   const saveScore = async (_newScore: number) => {
@@ -73,16 +74,11 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
     setSaving(true);
     const newRounds = [...rounds];
-    const newScore = _newScore > playerStats[currentPlayer].remaining ? 0 : _newScore;
+    const newScore = _newScore > playerStats[currentPlayer].remaining ? -1 : _newScore;
     newRounds[currentRound][currentPlayer] = newScore;
     setScore(0);
-    if (currentPlayerIdx >= remainingPlayers.length - 1) {
-      setCurrentPlayerIdx(0);
+    if (remainingRoundPlayers.length === 1) {
       newRounds.push({});
-    } else {
-      if (playerStats[currentPlayer].total + newScore !== gameConfig.goal) {
-        setCurrentPlayerIdx(currentPlayerIdx + 1);
-      }
     }
 
     const newGameData = buildGameData(gameData.config, newRounds);
@@ -123,9 +119,6 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const renderScore = (roundNum: number, player: string) => {
     if (editModeScores) {
       const roundScore = editModeScores[roundNum][player];
-      if (roundScore === undefined) {
-        return null;
-      }
       return <input type="number" value={roundScore} onChange={onEditScoreChange(roundNum, player)} />;
     } else {
       const roundScore = rounds[roundNum][player];
@@ -248,18 +241,20 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
             <DartsToClose remaining={playerStats[currentPlayer].remaining} />
           </h3>
           <DartboardWrapper size={400} onClick={handleDartboardClick} />
-          <div style={{ marginTop: 20 }}>
-            <form onSubmit={addScore}>
-              <input
-                ref={scoreRef}
-                type="number"
-                value={score}
-                onChange={(evt) => setScore(parseInt(evt.target.value))}
-              />
-              <input type="submit" value="Save score" disabled={saving} />
-              <input type="button" value="Bust!" onClick={addBust} disabled={saving} />
-            </form>
-          </div>
+          {!editModeScores && (
+            <div style={{ marginTop: 20 }}>
+              <form onSubmit={addScore}>
+                <input
+                  ref={scoreRef}
+                  type="number"
+                  value={score}
+                  onChange={(evt) => setScore(parseInt(evt.target.value))}
+                />
+                <input type="submit" value="Save score" disabled={saving} />
+                <input type="button" value="Bust!" onClick={addBust} disabled={saving} />
+              </form>
+            </div>
+          )}
         </div>
       )}
       {gameOver && (
