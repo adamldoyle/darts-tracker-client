@@ -34,6 +34,27 @@ const { slice, selectors: baseSelectors, hooks, context } = createMonitoredSlice
   selectSelectedLeague,
 );
 
+const userAverages = (userValues: Record<string, number[]>): Record<string, number> => {
+  return Object.entries(userValues).reduce<Record<string, number>>((acc, [email, values]) => {
+    acc[email] = formatDivision(
+      values.reduce((acc, value) => acc + value, 0),
+      values.length,
+      1,
+    );
+    return acc;
+  }, {});
+};
+
+const mergeUserAverages = (
+  numerators: Record<string, number>,
+  denominators: Record<string, number>,
+): Record<string, number> => {
+  return Object.entries(numerators).reduce<Record<string, number>>((acc, [email, numerator]) => {
+    acc[email] = formatDivision(numerator, denominators[email], 1);
+    return acc;
+  }, {});
+};
+
 const selectTotalBusts = createSelector(baseSelectors.selectData, (games) => {
   return games.reduce<Record<string, number>>((acc, game) => {
     Object.values(game.data.playerStats).forEach((playerStats) => {
@@ -147,50 +168,23 @@ const selectEloHistory = createSelector(baseSelectors.selectData, (games) => {
 });
 
 const selectAverageBustsRankings = createSelector(selectTotalGames, selectTotalBusts, (totalGames, totalBusts) => {
-  const averages = Object.entries(totalBusts).reduce<Record<string, number>>((acc, [email, busts]) => {
-    acc[email] = formatDivision(busts, totalGames[email], 1);
-    return acc;
-  }, {});
+  const averages = mergeUserAverages(totalBusts, totalGames);
   return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
 });
 
 const selectAverageClosingScoreRankings = createSelector(selectScoresToClose, (scoresToClose) => {
-  const averages = Object.entries(scoresToClose).reduce<Record<string, number>>((acc, [email, scores]) => {
-    acc[email] = formatDivision(
-      scores.reduce((acc, score) => acc + score, 0),
-      scores.length,
-      1,
-    );
-    return acc;
-  }, {});
+  const averages = userAverages(scoresToClose);
   return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? 1 : -1));
 });
 
 const selectAverageRoundScoreRankings = createSelector(selectRoundScores, (roundScores) => {
-  const averages = Object.entries(roundScores).reduce<Record<string, number>>((acc, [email, scores]) => {
-    acc[email] = formatDivision(
-      scores.reduce((acc, score) => acc + score, 0),
-      scores.length,
-      1,
-    );
-    return acc;
-  }, {});
+  const averages = userAverages(roundScores);
   return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? 1 : -1));
 });
 
 const selectAverageRoundsPlayedRankings = createSelector(selectRoundsPlayed, (roundsPlayed) => {
-  const roundsPlayedAverages = Object.entries(roundsPlayed).reduce<Record<string, number>>(
-    (acc, [email, roundsPlayed]) => {
-      acc[email] = formatDivision(
-        roundsPlayed.reduce((acc, roundPlayed) => acc + roundPlayed, 0),
-        roundsPlayed.length,
-        1,
-      );
-      return acc;
-    },
-    {},
-  );
-  return Object.entries(roundsPlayedAverages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
+  const averages = userAverages(roundsPlayed);
+  return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
 });
 
 const selectBestRoundRankings = createSelector(selectRoundScores, (roundScores) => {
@@ -226,50 +220,54 @@ const selectGamesPlayedRankings = createSelector(selectTotalGames, (totalGames) 
   return Object.entries(totalGames).sort((a, b) => (a[1] < b[1] ? 1 : -1));
 });
 
-const selectRoundsAbove50Rankings = createSelector(selectRoundScores, (roundScores) => {
-  const roundsAbove50 = Object.entries(roundScores).reduce<Record<string, number>>((acc, [email, scores]) => {
-    acc[email] = scores.filter((score) => score >= 50).length;
-    return acc;
-  }, {});
-  return Object.entries(roundsAbove50).sort((a, b) => (a[1] < b[1] ? 1 : -1));
-});
+const selectRoundsAboveScoreRankings = createSelector(
+  [selectRoundScores, (state: unknown, scoreTarget: number) => scoreTarget],
+  (roundScores, scoreTarget) => {
+    const roundsAbove50 = Object.entries(roundScores).reduce<Record<string, number>>((acc, [email, scores]) => {
+      acc[email] = scores.filter((score) => score >= scoreTarget).length;
+      return acc;
+    }, {});
+    return Object.entries(roundsAbove50).sort((a, b) => (a[1] < b[1] ? 1 : -1));
+  },
+);
 
 const CLOSE_BREAKPOINT = 30;
 
-const selectAverageRoundsToCloseRankings = createSelector(baseSelectors.selectData, (games) => {
-  const rawScores: Record<string, number> = {};
-  const roundsToFinish = games.reduce<Record<string, number[]>>((acc, game) => {
-    game.data.config.players.forEach((email) => {
-      if (game.data.playerStats[email].remaining === 0) {
-        if (!acc[email]) {
-          acc[email] = [];
-        }
-        acc[email].push(0);
-        rawScores[email] = 0;
-      }
-    });
-    game.data.rounds.forEach((round) => {
-      Object.entries(round).forEach(([email, score]) => {
+const selectAverageRoundsToCloseRankings = createSelector(
+  baseSelectors.selectData,
+  (state: unknown, includeBusts: boolean) => includeBusts,
+  (games, includeBusts) => {
+    const rawScores: Record<string, number> = {};
+    const roundsToFinish = games.reduce<Record<string, number[]>>((acc, game) => {
+      game.data.config.players.forEach((email) => {
         if (game.data.playerStats[email].remaining === 0) {
-          if (game.data.config.goal - rawScores[email] <= CLOSE_BREAKPOINT) {
-            acc[email][acc[email].length - 1]++;
+          if (!acc[email]) {
+            acc[email] = [];
           }
-          rawScores[email] += score;
+          acc[email].push(0);
+          rawScores[email] = 0;
         }
       });
-    });
-    return acc;
-  }, {});
-  const averages = Object.entries(roundsToFinish).reduce<Record<string, number>>((acc, [email, roundsToFinish]) => {
-    acc[email] = formatDivision(
-      roundsToFinish.reduce((acc, rounds) => acc + rounds, 0),
-      roundsToFinish.length,
-      1,
-    );
-    return acc;
-  }, {});
-  return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
-});
+      game.data.rounds.forEach((round) => {
+        Object.entries(round).forEach(([email, score]) => {
+          if (game.data.playerStats[email].remaining === 0) {
+            if (game.data.config.goal - rawScores[email] <= CLOSE_BREAKPOINT) {
+              if (includeBusts || score !== -1) {
+                acc[email][acc[email].length - 1]++;
+              }
+            }
+            if (score !== -1) {
+              rawScores[email] += score;
+            }
+          }
+        });
+      });
+      return acc;
+    }, {});
+    const averages = userAverages(roundsToFinish);
+    return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
+  },
+);
 
 const selectTotalWinsRankings = createSelector(selectTotalWins, (totalWins) => {
   return Object.entries(totalWins).sort((a, b) => (a[1] < b[1] ? 1 : -1));
@@ -288,6 +286,35 @@ const selectEloRankings = createSelector(selectEloHistory, ({ finalElo }) => {
   return Object.entries(finalElo).sort((a, b) => (a[1] > b[1] ? -1 : 1));
 });
 
+const selectHighestBustRankings = createSelector(baseSelectors.selectData, (games) => {
+  const highestBusts = games.reduce<Record<string, number>>((acc, game) => {
+    const remaining: Record<string, number> = {};
+    game.data.config.players.forEach((email) => {
+      if (game.data.playerStats[email].remaining === 0) {
+        remaining[email] = game.data.config.goal;
+      }
+      if (!acc[email]) {
+        acc[email] = 0;
+      }
+    });
+    game.data.rounds.forEach((round) => {
+      Object.entries(round).forEach(([email, score]) => {
+        if (game.data.playerStats[email].remaining === 0) {
+          if (score === -1) {
+            if (remaining[email] > acc[email]) {
+              acc[email] = remaining[email];
+            }
+          } else {
+            remaining[email] -= score;
+          }
+        }
+      });
+    });
+    return acc;
+  }, {});
+  return Object.entries(highestBusts).sort((a, b) => (a[1] > b[1] ? -1 : 1));
+});
+
 const actions = slice.actions;
 const reducer = slice.reducer;
 const selectors = {
@@ -300,11 +327,12 @@ const selectors = {
   selectTopTenRoundRankings,
   selectBestScoreToCloseRankings,
   selectGamesPlayedRankings,
-  selectRoundsAbove50Rankings,
+  selectRoundsAboveScoreRankings,
   selectAverageRoundsToCloseRankings,
   selectTotalWinsRankings,
   selectWinPercentageRankings,
   selectEloRankings,
   selectEloHistory,
+  selectHighestBustRankings,
 };
 export { selectors, actions, hooks, context, reducer };

@@ -8,7 +8,7 @@ import { AverageRoundScoreCard } from '../AverageRoundScoreCard';
 import { AverageRoundsPlayedCard } from '../AverageRoundsPlayedCard';
 import { AverageBustsCard } from '../AverageBustsCard';
 import { BestRoundsCard } from '../BestRoundsCard';
-import { RoundsAbove50Card } from '../RoundsAbove50Card';
+import { RoundsAboveScoreCard } from '../RoundsAboveScoreCard';
 import { WinsCard } from '../WinsCard';
 import { GamesPlayedCard } from '../GamesPlayedCard';
 import { WinPercentCard } from '../WinPercentCard';
@@ -17,6 +17,7 @@ import { RoundsToFinishCard } from '../RoundsToFinishCard';
 import { AverageClosingRoundCard } from '../AverageClosingRoundCard';
 import { BestScoreToCloseCard } from '../BestScoreToCloseCard';
 import { EloCard } from '../EloCard';
+import { HighestBustScoreCard } from '../HighestBustScoreCard';
 
 export interface StatsPageProps {}
 
@@ -40,12 +41,15 @@ export const StatsPage: FC<StatsPageProps> = () => {
       <AverageRoundScoreCard />
       <AverageRoundsPlayedCard />
       <AverageClosingRoundCard />
-      <RoundsToFinishCard />
+      <RoundsToFinishCard includeBusts />
+      <RoundsToFinishCard includeBusts={false} />
       <BestScoreToCloseCard />
       <AverageBustsCard />
       <BestRoundsCard />
       <BestRoundsEverCard />
-      <RoundsAbove50Card />
+      <RoundsAboveScoreCard targetScore={50} />
+      <RoundsAboveScoreCard targetScore={100} />
+      <HighestBustScoreCard />
       <WinsCard />
       <GamesPlayedCard />
     </Box>
