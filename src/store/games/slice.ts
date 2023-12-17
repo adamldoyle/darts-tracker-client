@@ -87,7 +87,9 @@ const selectTotalGames = createSelector(baseSelectors.selectData, (games) => {
       if (!acc[playerStats.email]) {
         acc[playerStats.email] = 0;
       }
-      acc[playerStats.email]++;
+      if (playerStats.roundsPlayed > 0) {
+        acc[playerStats.email]++;
+      }
     });
     return acc;
   }, {});
@@ -171,7 +173,7 @@ const selectTotalWins = createSelector(baseSelectors.selectData, (games) => {
       if (!acc[playerStats.email]) {
         acc[playerStats.email] = 0;
       }
-      if (playerStats.ranking === 1) {
+      if (playerStats.ranking === 1 && playerStats.remaining === 0) {
         acc[playerStats.email]++;
       }
     });
@@ -397,6 +399,35 @@ const selectAverageRoundsInSingleDigits = createSelector(baseSelectors.selectDat
   return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
 });
 
+const selectAverageScoreBeforeClosingRangeRankings = createSelector(baseSelectors.selectData, (games) => {
+  const rawScores: Record<string, number> = {};
+  const averageScores = games.reduce<Record<string, number[]>>((acc, game) => {
+    game.data.config.players.forEach((email) => {
+      if (game.data.playerStats[email].remaining === 0) {
+        if (!acc[email]) {
+          acc[email] = [];
+        }
+        rawScores[email] = 0;
+      }
+    });
+    game.data.rounds.forEach((round) => {
+      Object.entries(round).forEach(([email, score]) => {
+        if (game.data.playerStats[email].remaining === 0) {
+          if (game.data.config.goal - rawScores[email] > CLOSE_BREAKPOINT && score !== -1) {
+            acc[email].push(score);
+          }
+          if (score !== -1) {
+            rawScores[email] += score;
+          }
+        }
+      });
+    });
+    return acc;
+  }, {});
+  const averages = userAverages(averageScores);
+  return Object.entries(averages).sort((a, b) => (a[1] > b[1] ? -1 : 1));
+});
+
 const actions = slice.actions;
 const reducer = slice.reducer;
 const selectors = {
@@ -419,5 +450,6 @@ const selectors = {
   selectAverageRoundsPlayedHistory,
   selectCloseLossRankings,
   selectAverageRoundsInSingleDigits,
+  selectAverageScoreBeforeClosingRangeRankings,
 };
 export { selectors, actions, hooks, context, reducer };

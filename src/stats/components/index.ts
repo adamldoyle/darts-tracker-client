@@ -16,3 +16,4 @@ export * from './AverageRoundsPlayedCard';
 export * from './StatsPage';
 export * from './HighestBustScoreCard';
 export * from './CloseLossesCard';
+export * from './AverageScoreBeforeClosingRangeCard';
