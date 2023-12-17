@@ -42,7 +42,10 @@ const { slice, selectors: baseSelectors, hooks, context } = createMonitoredSlice
 );
 
 export const selectSelectedLeague = createSelector(baseSelectors.selectSlice, (slice) => slice.selectedLeague);
-export const selectEloKFactor = createSelector(baseSelectors.selectSlice, (slice) => slice.eloKFactor);
+export const selectEloKFactor = createSelector(
+  baseSelectors.selectSlice,
+  (slice) => slice.eloKFactor ?? DEFAULT_K_FACTOR,
+);
 
 const actions = slice.actions;
 const reducer = slice.reducer;
