@@ -10,6 +10,7 @@ import { AppToolbar } from '../AppToolbar';
 import { QuickBar } from '../QuickBar';
 import { EloHistoryPage, StatsPage } from 'stats/components';
 import { LandingPage } from '../LandingPage';
+import { AverageRoundsHistoryPage } from 'stats/components/AverageRoundsHistoryPage';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -35,6 +36,7 @@ const AppContents: FC = () => {
       <Route path="/game" exact component={CreateGamePage} />
       <Route path="/stats" exact component={StatsPage} />
       <Route path="/stats/elo" exact component={EloHistoryPage} />
+      <Route path="/stats/averageRounds" exact component={AverageRoundsHistoryPage} />
       <Route path="/" exact component={LandingPage} />
     </Switch>
   );

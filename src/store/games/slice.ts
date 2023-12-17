@@ -3,7 +3,7 @@ import { API } from 'aws-amplify';
 import { IRootState } from 'store/types';
 import { createMonitoredSlice } from '@adamldoyle/reduxjs-toolkit-monitored-slice';
 import { ILeagueWithMembers } from '../leagues/types';
-import { selectSelectedLeague } from '../leagues/slice';
+import { selectEloKFactor, selectSelectedLeague } from '../leagues/slice';
 import { IGame, ILeagueGamesState } from './types';
 import { formatDivision, formatNumber, formatPercent } from 'shared/utils/numbers';
 import { calculateGameElos } from './elo';
@@ -51,6 +51,20 @@ const mergeUserAverages = (
 ): Record<string, number> => {
   return Object.entries(numerators).reduce<Record<string, number>>((acc, [email, numerator]) => {
     acc[email] = formatDivision(numerator, denominators[email], 1);
+    return acc;
+  }, {});
+};
+
+const collectRoundsPlayed = (games: IGame[]) => {
+  return games.reduce<Record<string, number[]>>((acc, game) => {
+    Object.values(game.data.playerStats).forEach((playerStats) => {
+      if (!acc[playerStats.email]) {
+        acc[playerStats.email] = [];
+      }
+      if (playerStats.remaining === 0) {
+        acc[playerStats.email].push(playerStats.roundsPlayed);
+      }
+    });
     return acc;
   }, {});
 };
@@ -119,17 +133,36 @@ const selectRoundScores = createSelector(baseSelectors.selectData, (games) => {
 });
 
 const selectRoundsPlayed = createSelector(baseSelectors.selectData, (games) => {
-  return games.reduce<Record<string, number[]>>((acc, game) => {
-    Object.values(game.data.playerStats).forEach((playerStats) => {
-      if (!acc[playerStats.email]) {
-        acc[playerStats.email] = [];
-      }
-      if (playerStats.remaining === 0) {
-        acc[playerStats.email].push(playerStats.roundsPlayed);
-      }
-    });
+  return collectRoundsPlayed(games);
+});
+
+const selectAverageRoundsPlayedHistory = createSelector(baseSelectors.selectData, (games) => {
+  const gamesByMonth = games.reduce<Record<string, IGame[]>>((acc, game) => {
+    const date = new Date(game.data.config.datePlayed);
+    const year = date.getFullYear().toString();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const key = `${year}-${month}`;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(game);
     return acc;
   }, {});
+  const roundsPlayedByMonth = Object.entries(gamesByMonth).reduce<Record<string, Record<string, number[]>>>(
+    (acc, [month, games]) => {
+      acc[month] = collectRoundsPlayed(games);
+      return acc;
+    },
+    {},
+  );
+  const averagesByMonth = Object.entries(roundsPlayedByMonth).reduce<Record<string, Record<string, number>>>(
+    (acc, [month, roundsPlayed]) => {
+      acc[month] = userAverages(roundsPlayed);
+      return acc;
+    },
+    {},
+  );
+  return averagesByMonth;
 });
 
 const selectTotalWins = createSelector(baseSelectors.selectData, (games) => {
@@ -146,11 +179,11 @@ const selectTotalWins = createSelector(baseSelectors.selectData, (games) => {
   }, {});
 });
 
-const selectEloHistory = createSelector(baseSelectors.selectData, (games) => {
+const selectEloHistory = createSelector(baseSelectors.selectData, selectEloKFactor, (games, eloKFactor) => {
   const sortedGames = [...games].sort((a, b) => (a.data.config.datePlayed < b.data.config.datePlayed ? -1 : 1));
   const masterElo: Record<string, number> = {};
   const eloHistory = sortedGames.map((game) => {
-    calculateGameElos(game, masterElo);
+    calculateGameElos(game, masterElo, eloKFactor);
     return {
       gameId: game.gameId,
       datePlayed: game.data.config.datePlayed,
@@ -315,6 +348,55 @@ const selectHighestBustRankings = createSelector(baseSelectors.selectData, (game
   return Object.entries(highestBusts).sort((a, b) => (a[1] > b[1] ? -1 : 1));
 });
 
+const selectCloseLossRankings = createSelector(baseSelectors.selectData, (games) => {
+  const closeLosses = games.reduce<Record<string, number>>((acc, game) => {
+    const winner = Object.values(game.data.playerStats).find((playerStats) => playerStats.ranking === 1);
+    if (!winner) {
+      return acc;
+    }
+    Object.values(game.data.playerStats).forEach((playerStats) => {
+      if (!acc[playerStats.email]) {
+        acc[playerStats.email] = 0;
+      }
+      if (playerStats.roundsPlayed === winner.roundsPlayed + 1) {
+        acc[playerStats.email]++;
+      }
+    });
+    return acc;
+  }, {});
+  return Object.entries(closeLosses).sort((a, b) => (a[1] > b[1] ? -1 : 1));
+});
+
+const selectAverageRoundsInSingleDigits = createSelector(baseSelectors.selectData, (games) => {
+  const rawScores: Record<string, number> = {};
+  const roundsInSingleDigits = games.reduce<Record<string, number[]>>((acc, game) => {
+    game.data.config.players.forEach((email) => {
+      if (game.data.playerStats[email].remaining === 0) {
+        if (!acc[email]) {
+          acc[email] = [];
+        }
+        acc[email].push(0);
+        rawScores[email] = 0;
+      }
+    });
+    game.data.rounds.forEach((round) => {
+      Object.entries(round).forEach(([email, score]) => {
+        if (game.data.playerStats[email].remaining === 0) {
+          if (game.data.config.goal - rawScores[email] < 10) {
+            acc[email][acc[email].length - 1]++;
+          }
+          if (score !== -1) {
+            rawScores[email] += score;
+          }
+        }
+      });
+    });
+    return acc;
+  }, {});
+  const averages = userAverages(roundsInSingleDigits);
+  return Object.entries(averages).sort((a, b) => (a[1] < b[1] ? -1 : 1));
+});
+
 const actions = slice.actions;
 const reducer = slice.reducer;
 const selectors = {
@@ -334,5 +416,8 @@ const selectors = {
   selectEloRankings,
   selectEloHistory,
   selectHighestBustRankings,
+  selectAverageRoundsPlayedHistory,
+  selectCloseLossRankings,
+  selectAverageRoundsInSingleDigits,
 };
 export { selectors, actions, hooks, context, reducer };

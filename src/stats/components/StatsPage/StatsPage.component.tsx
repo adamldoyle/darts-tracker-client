@@ -18,6 +18,8 @@ import { AverageClosingRoundCard } from '../AverageClosingRoundCard';
 import { BestScoreToCloseCard } from '../BestScoreToCloseCard';
 import { EloCard } from '../EloCard';
 import { HighestBustScoreCard } from '../HighestBustScoreCard';
+import { CloseLossesCard } from '../CloseLossesCard';
+import { AverageRoundsInSingleDigits } from '../AverageRoundsInSingleDigits';
 
 export interface StatsPageProps {}
 
@@ -39,7 +41,7 @@ export const StatsPage: FC<StatsPageProps> = () => {
       <EloCard onClick={() => history.push('/stats/elo')} />
       <WinPercentCard />
       <AverageRoundScoreCard />
-      <AverageRoundsPlayedCard />
+      <AverageRoundsPlayedCard onClick={() => history.push('/stats/averageRounds')} />
       <AverageClosingRoundCard />
       <RoundsToFinishCard includeBusts />
       <RoundsToFinishCard includeBusts={false} />
@@ -50,7 +52,9 @@ export const StatsPage: FC<StatsPageProps> = () => {
       <RoundsAboveScoreCard targetScore={50} />
       <RoundsAboveScoreCard targetScore={100} />
       <HighestBustScoreCard />
+      <AverageRoundsInSingleDigits />
       <WinsCard />
+      <CloseLossesCard />
       <GamesPlayedCard />
     </Box>
   );

@@ -22,7 +22,7 @@ const persistor = persistStore(store);
 ReactDOM.render(
   <React.StrictMode>
     <Router>
-      <Container component="main">
+      <Container component="main" maxWidth={false}>
         <CssBaseline />
         <ToastContainer position="top-center" autoClose={5000} draggable={false} />
         <AuthContextProvider sessionPingDelay={45}>

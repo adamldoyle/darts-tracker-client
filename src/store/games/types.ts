@@ -17,6 +17,7 @@ export interface IGameConfig {
 }
 
 export type IRounds = Record<string, number>[];
+export type IEditRounds = Record<string, string>[];
 export type IAllPlayerGameStats = Record<string, IPlayerGameStats>;
 
 export interface IGameData {

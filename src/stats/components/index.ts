@@ -15,4 +15,4 @@ export * from './AverageRoundScoreCard';
 export * from './AverageRoundsPlayedCard';
 export * from './StatsPage';
 export * from './HighestBustScoreCard';
-export {};
+export * from './CloseLossesCard';

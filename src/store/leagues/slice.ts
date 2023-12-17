@@ -5,6 +5,8 @@ import { createMonitoredSlice } from '@adamldoyle/reduxjs-toolkit-monitored-slic
 import { selectEmail } from '../auth/slice';
 import { ILeague, ILeaguesState, ILeagueWithMembers } from './types';
 
+const DEFAULT_K_FACTOR = 10;
+
 const { slice, selectors: baseSelectors, hooks, context } = createMonitoredSlice<
   IRootState,
   ILeague[],
@@ -15,10 +17,14 @@ const { slice, selectors: baseSelectors, hooks, context } = createMonitoredSlice
     name: 'leagues',
     initialState: {
       selectedLeague: null,
+      eloKFactor: DEFAULT_K_FACTOR,
     },
     reducers: {
       selectLeague: (state, action: PayloadAction<ILeagueWithMembers>) => {
         state.selectedLeague = action.payload;
+      },
+      setEloKFactor: (state, action: PayloadAction<number>) => {
+        state.eloKFactor = action.payload;
       },
     },
   },
@@ -36,8 +42,9 @@ const { slice, selectors: baseSelectors, hooks, context } = createMonitoredSlice
 );
 
 export const selectSelectedLeague = createSelector(baseSelectors.selectSlice, (slice) => slice.selectedLeague);
+export const selectEloKFactor = createSelector(baseSelectors.selectSlice, (slice) => slice.eloKFactor);
 
 const actions = slice.actions;
 const reducer = slice.reducer;
-const selectors = { ...baseSelectors, selectSelectedLeague };
+const selectors = { ...baseSelectors, selectSelectedLeague, selectEloKFactor };
 export { selectors, actions, hooks, context, reducer };

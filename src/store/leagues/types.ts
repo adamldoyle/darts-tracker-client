@@ -17,4 +17,5 @@ export interface ILeagueWithMembers extends ILeague {
 
 export interface ILeaguesState extends IMonitoredState<ILeague[]> {
   selectedLeague: ILeagueWithMembers | null;
+  eloKFactor: number;
 }

@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import { Box, CircularProgress } from '@material-ui/core';
 import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
-import { IGameData, IRounds } from 'store/games/types';
+import { IEditRounds, IGameData, IRounds } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
 import { playerUtils } from 'shared/utils';
 import { formatDivision } from 'shared/utils/numbers';
@@ -23,6 +23,14 @@ export const saveGame = async (leagueKey: string | undefined, gameId: string, ga
   });
 };
 
+const parseScore = (rawScore: string): number => {
+  const score = parseInt(rawScore);
+  if (isNaN(score)) {
+    return 0;
+  }
+  return score;
+};
+
 export const Scoreboard: FC<ScoreboardProps> = () => {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
@@ -31,10 +39,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState('0');
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
-  const [editModeScores, setEditModeScores] = useState<IRounds | undefined>();
+  const [editModeScores, setEditModeScores] = useState<IEditRounds | undefined>();
 
   useEffect(() => {
     if (gameId && selectedLeague) {
@@ -79,7 +87,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     newRounds[currentRound][currentPlayer] = newScore;
     const newGameData = buildGameData(gameData.config, newRounds);
     setGameData(newGameData);
-    setScore(0);
+    setScore('0');
     scoreRef.current?.focus();
     await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
     makeGamesStale();
@@ -88,7 +96,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const addScore = (evt?: FormEvent) => {
     evt?.preventDefault();
-    saveScore(score);
+    saveScore(parseScore(score));
   };
 
   const addBust = () => {
@@ -99,7 +107,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   };
 
   const handleDartboardClick = (details: DartboardClickDetails) => {
-    setScore(score + details.score);
+    setScore((parseScore(score) + details.score).toString());
   };
 
   const onEditScoreChange = (roundNum: number, player: string) => (evt: ChangeEvent<HTMLInputElement>) => {
@@ -108,20 +116,16 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
 
     const newScores = [...editModeScores];
-    if (evt.target.value === '') {
-      delete newScores[roundNum][player];
-    } else {
-      newScores[roundNum][player] = parseInt(evt.target.value || '0');
-    }
+    newScores[roundNum][player] = evt.target.value;
     setEditModeScores(newScores);
   };
 
   const renderScore = (roundNum: number, player: string) => {
     if (editModeScores) {
-      const roundScore = editModeScores[roundNum][player];
+      const roundScore = editModeScores[roundNum]?.[player];
       return <input value={roundScore} onChange={onEditScoreChange(roundNum, player)} />;
     } else {
-      const roundScore = rounds[roundNum][player];
+      const roundScore = rounds[roundNum]?.[player];
       return roundScore === -1 ? 'x' : roundScore;
     }
   };
@@ -130,7 +134,17 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     if (editModeScores) {
       if (!cancel) {
         setSaving(true);
-        const newGameData = buildGameData(gameData.config, editModeScores);
+        const newGameData = buildGameData(
+          gameData.config,
+          editModeScores.map((round) =>
+            Object.entries(round).reduce<Record<string, number>>((acc, [email, score]) => {
+              if (score !== '') {
+                acc[email] = parseInt(score);
+              }
+              return acc;
+            }, {}),
+          ),
+        );
         setGameData(newGameData);
         await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
         makeGamesStale();
@@ -139,7 +153,14 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
       setEditModeScores(undefined);
       scoreRef.current?.focus();
     } else {
-      setEditModeScores(rounds.map((round) => ({ ...round })));
+      setEditModeScores(
+        rounds.map((round) =>
+          Object.entries(round).reduce<Record<string, string>>((acc, [email, score]) => {
+            acc[email] = score.toString();
+            return acc;
+          }, {}),
+        ),
+      );
     }
   };
 
@@ -169,8 +190,8 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 20, marginTop: 20 }}>
-      <div style={{ flex: '1 0 auto' }}>
+    <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 0 auto', overflowX: 'scroll', maxWidth: '100%' }}>
         <h2 style={{ textAlign: 'center' }}>Scores</h2>
         <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
           <thead>
@@ -238,21 +259,18 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
             Remaining: {playerStats[currentPlayer].remaining}{' '}
             <DartsToClose remaining={playerStats[currentPlayer].remaining} />
           </h3>
-          <DartboardWrapper size={400} onClick={handleDartboardClick} />
           {!editModeScores && (
             <div style={{ marginTop: 20 }}>
               <form onSubmit={addScore}>
-                <input
-                  ref={scoreRef}
-                  type="number"
-                  value={score}
-                  onChange={(evt) => setScore(parseInt(evt.target.value))}
-                />
+                <input ref={scoreRef} value={score} onChange={(evt) => setScore(evt.target.value)} />
                 <input type="submit" value="Save score" disabled={saving} />
                 <input type="button" value="Bust!" onClick={addBust} disabled={saving} />
               </form>
             </div>
           )}
+          <div style={{ marginTop: 20 }}>
+            <DartboardWrapper size={400} onClick={handleDartboardClick} />
+          </div>
         </div>
       )}
       {gameOver && (

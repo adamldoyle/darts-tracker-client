@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   CircularProgress,
@@ -22,7 +22,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { hooks as gamesHooks, selectors as gamesSelectors } from 'store/games/slice';
-import { selectors as leagueSelectors } from 'store/leagues/slice';
+import { selectors as leagueSelectors, actions as leagueActions } from 'store/leagues/slice';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -43,9 +43,13 @@ const colors = [
 export interface EloHistoryPageProps {}
 
 export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
+  const dispatch = useDispatch();
   const { loading: gamesLoading } = gamesHooks.useMonitoredData();
   const { eloHistory, finalElo } = useSelector(gamesSelectors.selectEloHistory);
   const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
+  const eloKFactor = useSelector(leagueSelectors.selectEloKFactor);
+
+  const reversedEloHistory = [...eloHistory].reverse();
 
   if (gamesLoading || !selectedLeague) {
     return (
@@ -57,12 +61,20 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
 
   return (
     <TableContainer>
+      ELO K-factor:{' '}
+      <input
+        type="number"
+        value={eloKFactor}
+        onChange={(evt) => {
+          dispatch(leagueActions.setEloKFactor(evt.target.value));
+        }}
+      />
       <Line
         height={200}
         data={{
           labels: eloHistory.map(({ datePlayed }) => new Date(datePlayed).toDateString()),
           datasets: Object.keys(finalElo).map((email, emailIdx) => ({
-            label: email,
+            label: `${email} (${finalElo[email]})`,
             data: eloHistory.map(({ elos }) => elos[email]),
             backgroundColor: colors[emailIdx % colors.length],
             borderColor: colors[emailIdx % colors.length],
@@ -82,7 +94,7 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {eloHistory.map(({ gameId, datePlayed, elos }) => (
+          {reversedEloHistory.map(({ gameId, datePlayed, elos }) => (
             <TableRow key={gameId}>
               <TableCell>{new Date(datePlayed).toDateString()}</TableCell>
               <TableCell>{gameId}</TableCell>
