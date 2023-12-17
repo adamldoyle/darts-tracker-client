@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import { Box, CircularProgress } from '@material-ui/core';
 import { selectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
-import { IEditRounds, IGameData, IRounds } from 'store/games/types';
+import { IEditRounds, IGameData } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
 import { playerUtils } from 'shared/utils';
 import { formatDivision } from 'shared/utils/numbers';
