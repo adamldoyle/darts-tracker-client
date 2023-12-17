@@ -57,21 +57,23 @@ export const AverageRoundsHistoryPage: FC<AverageRoundsHistoryPageProps> = () =>
   }
 
   return (
-    <Line
-      height={200}
-      data={{
-        labels: sortedRoundsHistory.map(([month]) => month),
-        datasets: allEmails.map((email, emailIdx) => ({
-          label: email,
-          data: sortedRoundsHistory.map(([, monthAverages]) => monthAverages[email]),
-          backgroundColor: colors[emailIdx % colors.length],
-          borderColor: colors[emailIdx % colors.length],
-        })),
-      }}
-      options={{
-        indexAxis: 'x',
-        spanGaps: true,
-      }}
-    />
+    <Box style={{ maxWidth: '80%' }}>
+      <Line
+        height={200}
+        data={{
+          labels: sortedRoundsHistory.map(([month]) => month),
+          datasets: allEmails.map((email, emailIdx) => ({
+            label: email,
+            data: sortedRoundsHistory.map(([, monthAverages]) => monthAverages[email]),
+            backgroundColor: colors[emailIdx % colors.length],
+            borderColor: colors[emailIdx % colors.length],
+          })),
+        }}
+        options={{
+          indexAxis: 'x',
+          spanGaps: true,
+        }}
+      />
+    </Box>
   );
 };

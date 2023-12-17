@@ -69,22 +69,24 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
           dispatch(leagueActions.setEloKFactor(evt.target.value));
         }}
       />
-      <Line
-        height={200}
-        data={{
-          labels: eloHistory.map(({ datePlayed }) => new Date(datePlayed).toDateString()),
-          datasets: Object.keys(finalElo).map((email, emailIdx) => ({
-            label: `${email} (${finalElo[email]})`,
-            data: eloHistory.map(({ elos }) => elos[email]),
-            backgroundColor: colors[emailIdx % colors.length],
-            borderColor: colors[emailIdx % colors.length],
-          })),
-        }}
-        options={{
-          indexAxis: 'x',
-          spanGaps: true,
-        }}
-      />
+      <Box style={{ maxWidth: '80%' }}>
+        <Line
+          height={200}
+          data={{
+            labels: eloHistory.map(({ datePlayed }) => new Date(datePlayed).toDateString()),
+            datasets: Object.keys(finalElo).map((email, emailIdx) => ({
+              label: `${email} (${finalElo[email]})`,
+              data: eloHistory.map(({ elos }) => elos[email]),
+              backgroundColor: colors[emailIdx % colors.length],
+              borderColor: colors[emailIdx % colors.length],
+            })),
+          }}
+          options={{
+            indexAxis: 'x',
+            spanGaps: true,
+          }}
+        />
+      </Box>
       <Table>
         <TableHead>
           <TableRow>
