@@ -23,6 +23,7 @@ import {
 import { Line } from 'react-chartjs-2';
 import { hooks as gamesHooks, selectors as gamesSelectors } from 'store/games/slice';
 import { selectors as leagueSelectors, actions as leagueActions } from 'store/leagues/slice';
+import { DEFAULT_ELO } from 'store/games/elo';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -73,10 +74,10 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
         <Line
           height={200}
           data={{
-            labels: eloHistory.map(({ datePlayed }) => new Date(datePlayed).toDateString()),
+            labels: ['', ...eloHistory.map(({ datePlayed }) => new Date(datePlayed).toDateString())],
             datasets: Object.keys(finalElo).map((email, emailIdx) => ({
               label: `${email} (${finalElo[email]})`,
-              data: eloHistory.map(({ elos }) => elos[email]),
+              data: [DEFAULT_ELO, ...eloHistory.map(({ elos }) => elos[email])],
               backgroundColor: colors[emailIdx % colors.length],
               borderColor: colors[emailIdx % colors.length],
             })),

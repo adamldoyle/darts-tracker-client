@@ -1,7 +1,7 @@
 import { IGame } from './types';
 
-const DEFAULT_ELO = 1500;
-const DEFAULT_K_FACTOR = 10;
+export const DEFAULT_ELO = 1500;
+export const DEFAULT_K_FACTOR = 10;
 
 const calculateExpectedScore = (playerElo: number, opponentElo: number): number => {
   return 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
