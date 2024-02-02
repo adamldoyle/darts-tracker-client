@@ -47,6 +47,7 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
   const dispatch = useDispatch();
   const { loading: gamesLoading } = gamesHooks.useMonitoredData();
   const { eloHistory, finalElo } = useSelector(gamesSelectors.selectEloHistory);
+
   const eloRankings = useSelector(gamesSelectors.selectEloRankings);
   const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
   const eloKFactor = useSelector(leagueSelectors.selectEloKFactor);

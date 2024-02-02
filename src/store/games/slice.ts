@@ -181,13 +181,19 @@ const selectTotalWins = createSelector(baseSelectors.selectData, (games) => {
   }, {});
 });
 
-const selectEloHistory = createSelector(baseSelectors.selectData, selectEloKFactor, (games, eloKFactor) => {
+const buildEloHistory = (games: IGame[], eloKFactor: number, gameStop?: string) => {
   const sortedGames = [...games].sort((a, b) => (a.data.config.datePlayed < b.data.config.datePlayed ? -1 : 1));
+  const filteredGames = gameStop
+    ? sortedGames.slice(
+        0,
+        sortedGames.findIndex((game) => game.gameId === gameStop),
+      )
+    : sortedGames;
   const masterElo: Record<string, number> = {};
   const allEmails = new Set<string>();
-  const eloHistoryLookup = sortedGames.reduce<Record<number, { datePlayed: number; elos: Record<string, number> }>>(
+  const eloHistoryLookup = filteredGames.reduce<Record<number, { datePlayed: number; elos: Record<string, number> }>>(
     (acc, game) => {
-      calculateGameElos(game, masterElo, eloKFactor);
+      calculateGameElos(game.data, masterElo, eloKFactor);
       game.data.config.players.forEach((email) => {
         allEmails.add(email);
       });
@@ -213,7 +219,20 @@ const selectEloHistory = createSelector(baseSelectors.selectData, selectEloKFact
   }, {});
   const eloHistory = Object.values(eloHistoryLookup).sort((a, b) => (a.datePlayed < b.datePlayed ? -1 : 1));
   return { finalElo, eloHistory };
+};
+
+const selectEloHistory = createSelector(baseSelectors.selectData, selectEloKFactor, (games, eloKFactor) => {
+  return buildEloHistory(games, eloKFactor, undefined);
 });
+
+const selectFilteredEloHistory = createSelector(
+  baseSelectors.selectData,
+  selectEloKFactor,
+  (state: unknown, gameStop: string) => gameStop,
+  (games, eloKFactor, gameStop) => {
+    return buildEloHistory(games, eloKFactor, gameStop);
+  },
+);
 
 const selectAverageBustsRankings = createSelector(selectTotalGames, selectTotalBusts, (totalGames, totalBusts) => {
   const averages = mergeUserAverages(totalBusts, totalGames);
@@ -459,6 +478,7 @@ const selectors = {
   selectWinPercentageRankings,
   selectEloRankings,
   selectEloHistory,
+  selectFilteredEloHistory,
   selectHighestBustRankings,
   selectAverageRoundsPlayedHistory,
   selectCloseLossRankings,

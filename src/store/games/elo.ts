@@ -1,4 +1,4 @@
-import { IGame } from './types';
+import { IGameData } from './types';
 
 export const DEFAULT_ELO = 1500;
 export const DEFAULT_K_FACTOR = 10;
@@ -27,33 +27,40 @@ const calculateEloChange = (
 };
 
 export const calculateGameElos = (
-  game: IGame,
+  game: IGameData,
   playerElos: Record<string, number>,
   kFactor: number = DEFAULT_K_FACTOR,
 ) => {
   const eloChange: Record<string, number> = {};
-  game.data.config.players.forEach((email) => {
+  game.config.players.forEach((email) => {
     eloChange[email] = 0;
     if (!playerElos[email]) {
       playerElos[email] = DEFAULT_ELO;
     }
   });
-  game.data.config.players.forEach((email) => {
-    game.data.config.players.forEach((opponentEmail) => {
+  const eloChangeHistory: Record<string, { opponentEmail: string; change: number }[]> = {};
+  game.config.players.forEach((email) => {
+    game.config.players.forEach((opponentEmail) => {
       if (email === opponentEmail) {
         return;
       }
 
-      eloChange[email] += calculateEloChange(
+      const change = calculateEloChange(
         playerElos[email],
         playerElos[opponentEmail],
-        game.data.playerStats[email].ranking,
-        game.data.playerStats[opponentEmail].ranking,
+        game.playerStats[email].ranking,
+        game.playerStats[opponentEmail].ranking,
         kFactor,
       );
+      eloChange[email] += change;
+      if (!eloChangeHistory[email]) {
+        eloChangeHistory[email] = [];
+      }
+      eloChangeHistory[email].push({ opponentEmail, change });
     });
   });
   Object.entries(eloChange).forEach(([email, change]) => {
     playerElos[email] += change;
   });
+  return eloChangeHistory;
 };

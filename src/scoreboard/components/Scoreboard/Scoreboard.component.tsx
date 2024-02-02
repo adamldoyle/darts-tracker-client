@@ -1,16 +1,19 @@
-import { useState, useRef, useEffect, FC, FormEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, FC, FormEvent, ChangeEvent, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { API } from 'aws-amplify';
 import { useSelector } from 'react-redux';
-import { Box, CircularProgress } from '@material-ui/core';
-import { selectors } from 'store/leagues/slice';
+import { Box, CircularProgress, Tooltip, Typography } from '@material-ui/core';
+import { selectors as leagueSelectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 import { IEditRounds, IGameData } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
+import { selectors as gamesSelectors } from 'store/games/slice';
 import { playerUtils } from 'shared/utils';
-import { formatDivision } from 'shared/utils/numbers';
+import { formatDivision, formatNumber } from 'shared/utils/numbers';
 import { hooks as gameHooks } from 'store/games/slice';
 import { DartsToClose } from '../DartsToClose';
+import { IRootState } from 'store/types';
+import { DEFAULT_ELO, calculateGameElos } from 'store/games/elo';
 
 export interface ScoreboardProps {}
 
@@ -31,11 +34,51 @@ const parseScore = (rawScore: string): number => {
   return score;
 };
 
+const displayElo = (
+  email: string,
+  preGameElo?: Partial<Record<string, number>>,
+  postGameEloData?: {
+    postGameElo: Partial<Record<string, number>>;
+    eloChanges: Partial<Record<string, { opponentEmail: string; change: number }[]>>;
+  },
+) => {
+  const playerPreElo = formatNumber(preGameElo?.[email] ?? DEFAULT_ELO, 1);
+  const playerPostElo = formatNumber(postGameEloData?.postGameElo?.[email] ?? preGameElo?.[email] ?? DEFAULT_ELO, 1);
+  const playerChanges = postGameEloData?.eloChanges?.[email] ?? [];
+  return (
+    <Tooltip
+      title={
+        <>
+          <Typography variant="subtitle1">ELO changes:</Typography>
+          {playerChanges.map((playerChange) => (
+            <Typography key={playerChange.opponentEmail} variant="subtitle2">
+              {playerChange.opponentEmail}:{' '}
+              <span style={{ color: playerChange.change > 0 ? undefined : 'red' }}>
+                {playerChange.change > 0 ? '+' : ''}
+                {formatNumber(playerChange.change, 1)}
+              </span>
+            </Typography>
+          ))}
+        </>
+      }
+    >
+      <span>
+        ({playerPreElo} &mdash;&gt; {playerPostElo})
+      </span>
+    </Tooltip>
+  );
+};
+
 export const Scoreboard: FC<ScoreboardProps> = () => {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
 
-  const selectedLeague = useSelector(selectors.selectSelectedLeague);
+  const { finalElo: preGameElo } = useSelector((state: IRootState) =>
+    gamesSelectors.selectFilteredEloHistory(state, gameId),
+  );
+
+  const eloKFactor = useSelector(leagueSelectors.selectEloKFactor);
+  const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
   const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
@@ -43,6 +86,16 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
   const [editModeScores, setEditModeScores] = useState<IEditRounds | undefined>();
+
+  const postGameEloData = useMemo(() => {
+    if (!gameData) {
+      return undefined;
+    }
+
+    const postGameElo = { ...preGameElo };
+    const eloChanges = calculateGameElos(gameData, postGameElo, eloKFactor);
+    return { postGameElo, eloChanges };
+  }, [eloKFactor, preGameElo, gameData]);
 
   useEffect(() => {
     if (gameId && selectedLeague) {
@@ -205,6 +258,14 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                 </td>
               ))}
             </tr>
+            <tr>
+              <td></td>
+              {gameConfig.players.map((player) => (
+                <td key={player} style={{ fontWeight: 'bold', fontSize: '.8em' }}>
+                  {formatNumber(preGameElo?.[player] ?? DEFAULT_ELO, 1)}
+                </td>
+              ))}
+            </tr>
           </thead>
           <tbody>
             {rounds.map((round, roundNum) => (
@@ -278,7 +339,8 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           <h2>Rankings</h2>
           {sortedPlayers.map((sortedPlayer) => (
             <h3 key={sortedPlayer.email}>
-              {sortedPlayer.ranking}. {playerUtils.displayName(sortedPlayer.email)} {playerEmoji(sortedPlayer.email)}
+              {sortedPlayer.ranking}. {playerUtils.displayName(sortedPlayer.email)} {playerEmoji(sortedPlayer.email)}{' '}
+              {displayElo(sortedPlayer.email, preGameElo, postGameEloData)}
             </h3>
           ))}
         </div>
