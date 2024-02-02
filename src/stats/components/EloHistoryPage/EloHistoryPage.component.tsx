@@ -47,6 +47,7 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
   const dispatch = useDispatch();
   const { loading: gamesLoading } = gamesHooks.useMonitoredData();
   const { eloHistory, finalElo } = useSelector(gamesSelectors.selectEloHistory);
+  const eloRankings = useSelector(gamesSelectors.selectEloRankings);
   const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
   const eloKFactor = useSelector(leagueSelectors.selectEloKFactor);
 
@@ -75,12 +76,16 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
           height={200}
           data={{
             labels: ['', ...eloHistory.map(({ datePlayed }) => new Date(datePlayed).toDateString())],
-            datasets: Object.keys(finalElo).map((email, emailIdx) => ({
-              label: `${email} (${finalElo[email]})`,
-              data: [DEFAULT_ELO, ...eloHistory.map(({ elos }) => elos[email])],
-              backgroundColor: colors[emailIdx % colors.length],
-              borderColor: colors[emailIdx % colors.length],
-            })),
+            datasets: Object.keys(finalElo)
+              .sort((a, b) => a.localeCompare(b))
+              .map((email, emailIdx) => ({
+                label: `${email} (${finalElo[email]}, rank ${
+                  eloRankings.findIndex((value) => value[0] === email) + 1
+                })`,
+                data: [DEFAULT_ELO, ...eloHistory.map(({ elos }) => elos[email])],
+                backgroundColor: colors[emailIdx % colors.length],
+                borderColor: colors[emailIdx % colors.length],
+              })),
           }}
           options={{
             indexAxis: 'x',
@@ -92,15 +97,13 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
         <TableHead>
           <TableRow>
             <TableCell>Date</TableCell>
-            <TableCell>Game id</TableCell>
             <TableCell>Rankings</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {reversedEloHistory.map(({ gameId, datePlayed, elos }) => (
-            <TableRow key={gameId}>
+          {reversedEloHistory.map(({ datePlayed, elos }) => (
+            <TableRow key={datePlayed}>
               <TableCell>{new Date(datePlayed).toDateString()}</TableCell>
-              <TableCell>{gameId}</TableCell>
               <TableCell>
                 {Object.entries(elos)
                   .sort((a, b) => (a[1] < b[1] ? 1 : -1))

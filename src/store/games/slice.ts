@@ -184,21 +184,34 @@ const selectTotalWins = createSelector(baseSelectors.selectData, (games) => {
 const selectEloHistory = createSelector(baseSelectors.selectData, selectEloKFactor, (games, eloKFactor) => {
   const sortedGames = [...games].sort((a, b) => (a.data.config.datePlayed < b.data.config.datePlayed ? -1 : 1));
   const masterElo: Record<string, number> = {};
-  const eloHistory = sortedGames.map((game) => {
-    calculateGameElos(game, masterElo, eloKFactor);
-    return {
-      gameId: game.gameId,
-      datePlayed: game.data.config.datePlayed,
-      elos: game.data.config.players.reduce<Record<string, number>>((acc, email) => {
-        acc[email] = formatNumber(masterElo[email], 1);
-        return acc;
-      }, {}),
-    };
-  });
+  const allEmails = new Set<string>();
+  const eloHistoryLookup = sortedGames.reduce<Record<number, { datePlayed: number; elos: Record<string, number> }>>(
+    (acc, game) => {
+      calculateGameElos(game, masterElo, eloKFactor);
+      game.data.config.players.forEach((email) => {
+        allEmails.add(email);
+      });
+
+      const datePlayed = new Date(game.data.config.datePlayed);
+      datePlayed.setHours(0, 0, 0, 0);
+      const key = datePlayed.getTime();
+      if (!acc[key]) {
+        acc[key] = { datePlayed: key, elos: {} };
+      }
+
+      allEmails.forEach((email) => {
+        acc[key].elos[email] = formatNumber(masterElo[email], 1);
+      });
+
+      return acc;
+    },
+    {},
+  );
   const finalElo = Object.entries(masterElo).reduce<Record<string, number>>((acc, [email, elo]) => {
     acc[email] = formatNumber(elo, 1);
     return acc;
   }, {});
+  const eloHistory = Object.values(eloHistoryLookup).sort((a, b) => (a.datePlayed < b.datePlayed ? -1 : 1));
   return { finalElo, eloHistory };
 });
 

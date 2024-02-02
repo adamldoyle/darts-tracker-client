@@ -46,7 +46,7 @@ export const AverageRoundsHistoryPage: FC<AverageRoundsHistoryPageProps> = () =>
         .map((monthRounds) => Object.keys(monthRounds))
         .flat(),
     ),
-  );
+  ).sort((a, b) => a.localeCompare(b));
 
   if (gamesLoading || !selectedLeague) {
     return (
