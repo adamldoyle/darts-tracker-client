@@ -8,12 +8,14 @@ export interface IPlayerGameStats {
   ranking: number;
   busts: number;
   zeroes: number;
+  forfeit?: boolean;
 }
 
 export interface IGameConfig {
   datePlayed: number;
   players: string[];
   goal: number;
+  forfeits?: string[];
 }
 
 export type IRounds = Record<string, number>[];

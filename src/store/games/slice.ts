@@ -460,6 +460,21 @@ const selectAverageScoreBeforeClosingRangeRankings = createSelector(baseSelector
   return Object.entries(averages).sort((a, b) => (a[1] > b[1] ? -1 : 1));
 });
 
+const selectQuitterRankings = createSelector(baseSelectors.selectData, (games) => {
+  const quits = games.reduce<Record<string, number>>((acc, game) => {
+    game.data.config.players.forEach((email) => {
+      if (!acc[email]) {
+        acc[email] = 0;
+      }
+      if (game.data.playerStats[email].forfeit) {
+        acc[email] += 1;
+      }
+    });
+    return acc;
+  }, {});
+  return Object.entries(quits).sort((a, b) => (a[1] > b[1] ? -1 : 1));
+});
+
 const actions = slice.actions;
 const reducer = slice.reducer;
 const selectors = {
@@ -484,5 +499,6 @@ const selectors = {
   selectCloseLossRankings,
   selectAverageRoundsInSingleDigits,
   selectAverageScoreBeforeClosingRangeRankings,
+  selectQuitterRankings,
 };
 export { selectors, actions, hooks, context, reducer };

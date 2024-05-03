@@ -21,6 +21,7 @@ import { HighestBustScoreCard } from '../HighestBustScoreCard';
 import { CloseLossesCard } from '../CloseLossesCard';
 import { AverageRoundsInSingleDigits } from '../AverageRoundsInSingleDigits';
 import { AverageScoreBeforeClosingRangeCard } from '../AverageScoreBeforeClosingRangeCard';
+import { QuitterRankingsCard } from '../QuitterRankingsCard';
 
 export interface StatsPageProps {}
 
@@ -58,6 +59,7 @@ export const StatsPage: FC<StatsPageProps> = () => {
       <WinsCard />
       <CloseLossesCard />
       <GamesPlayedCard />
+      <QuitterRankingsCard />
     </Box>
   );
 };

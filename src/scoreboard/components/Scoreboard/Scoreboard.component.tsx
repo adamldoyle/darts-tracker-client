@@ -125,10 +125,14 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const sortedPlayers = Object.values(playerStats).sort(comparePlayerStats);
 
   const remainingRoundPlayers = gameConfig.players.filter(
-    (player) => playerStats[player].remaining !== 0 && playerStats[player].roundsPlayed !== rounds.length,
+    (player) =>
+      !playerStats[player].forfeit &&
+      playerStats[player].remaining !== 0 &&
+      playerStats[player].roundsPlayed !== rounds.length,
   );
   const currentPlayer = remainingRoundPlayers[0];
   const gameOver = !currentPlayer;
+  const newGame = currentRound === 0 && sortedPlayers.every((other) => other.roundsPlayed === 0);
 
   const saveScore = async (_newScore: number) => {
     if (saving || !currentPlayer) {
@@ -183,6 +187,27 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     }
   };
 
+  const toggleForfeit = async (player: string) => {
+    if (!newGame) {
+      return;
+    }
+
+    setSaving(true);
+    const forfeit = !gameData.config.forfeits?.includes(player);
+    const newGameData = buildGameData(
+      {
+        ...gameData.config,
+        forfeits: forfeit
+          ? [...(gameData.config.forfeits ?? []), player]
+          : gameData.config.forfeits?.filter((other) => other !== player) ?? [],
+      },
+      rounds,
+    );
+    setGameData(newGameData);
+    await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
+    setSaving(false);
+  };
+
   const toggleEditMode = async (cancel: boolean = false) => {
     if (editModeScores) {
       if (!cancel) {
@@ -224,15 +249,22 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     return !isWinner(player) && playerStats[player].total > 0 && playerStats[player].ranking === 1;
   };
   const isLoser = (player: string) => {
+    const nonQuitters = sortedPlayers.filter((other) => !other.forfeit);
     return (
+      !playerStats[player].forfeit &&
       rounds.length > 1 &&
       !isLeader(player) &&
-      playerStats[player].ranking === sortedPlayers[sortedPlayers.length - 1].ranking
+      playerStats[player].ranking === nonQuitters[nonQuitters.length - 1].ranking
     );
+  };
+  const isQuitter = (player: string) => {
+    return playerStats[player].forfeit;
   };
 
   const playerEmoji = (player: string) => {
-    if (isWinner(player)) {
+    if (isQuitter(player)) {
+      return <>&#128037;</>;
+    } else if (isWinner(player)) {
       return <>&#128081;</>;
     } else if (isLeader(player)) {
       return <>&#11088;</>;
@@ -246,13 +278,21 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
       <div style={{ flex: '1 0 auto', overflowX: 'scroll', maxWidth: '100%' }}>
         <h2 style={{ textAlign: 'center' }}>Scores</h2>
+        {newGame && <>Click player name to toggle their forfeit status prior to game beginning.</>}
         <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
           <thead>
             <tr>
               <td></td>
               {gameConfig.players.map((player) => (
                 <td key={player} style={{ fontWeight: 'bold' }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      textDecoration: gameData.config.forfeits?.includes(player) ? 'line-through' : undefined,
+                    }}
+                    onClick={() => toggleForfeit(player)}
+                  >
                     {playerUtils.displayName(player)} {playerEmoji(player)}
                   </div>
                 </td>

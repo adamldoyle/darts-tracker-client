@@ -45,18 +45,20 @@ export const calculateGameElos = (
         return;
       }
 
-      const change = calculateEloChange(
-        playerElos[email],
-        playerElos[opponentEmail],
-        game.playerStats[email].ranking,
-        game.playerStats[opponentEmail].ranking,
-        kFactor,
-      );
-      eloChange[email] += change;
-      if (!eloChangeHistory[email]) {
-        eloChangeHistory[email] = [];
+      if (!game.playerStats[email].forfeit || !game.playerStats[opponentEmail].forfeit) {
+        const change = calculateEloChange(
+          playerElos[email],
+          playerElos[opponentEmail],
+          game.playerStats[email].ranking,
+          game.playerStats[opponentEmail].ranking,
+          kFactor,
+        );
+        eloChange[email] += change;
+        if (!eloChangeHistory[email]) {
+          eloChangeHistory[email] = [];
+        }
+        eloChangeHistory[email].push({ opponentEmail, change });
       }
-      eloChangeHistory[email].push({ opponentEmail, change });
     });
   });
   Object.entries(eloChange).forEach(([email, change]) => {

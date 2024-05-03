@@ -1,6 +1,14 @@
 import { IPlayerGameStats, IGameData, IAllPlayerGameStats, IGameConfig, IRounds } from './types';
 
 export const comparePlayerStats = (player1Stats: IPlayerGameStats, player2Stats: IPlayerGameStats): -1 | 0 | 1 => {
+  if (player1Stats.forfeit) {
+    if (player2Stats.forfeit) {
+      return 0;
+    }
+    return 1;
+  } else if (player2Stats.forfeit) {
+    return -1;
+  }
   if (player1Stats.total > player2Stats.total) {
     return -1;
   }
@@ -40,6 +48,7 @@ export const calculatePlayerStats = (gameData: IGameData) => {
         ranking: 1,
         busts: 0,
         zeroes: 0,
+        forfeit: gameData.config.forfeits?.includes(player),
       };
       return acc;
     }, {}),
@@ -61,7 +70,7 @@ export const buildGameData = (config: IGameConfig, rounds: IRounds): IGameData =
   if (
     Object.values(gameData.playerStats).find((stats) => stats.remaining > 0) &&
     !Object.values(gameData.playerStats).find(
-      (stats) => stats.remaining > 0 && stats.roundsPlayed < gameData.rounds.length,
+      (stats) => !stats.forfeit && stats.remaining > 0 && stats.roundsPlayed < gameData.rounds.length,
     )
   ) {
     gameData.rounds.push({});
