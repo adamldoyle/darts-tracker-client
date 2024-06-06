@@ -14,6 +14,7 @@ import { hooks as gameHooks } from 'store/games/slice';
 import { DartsToClose } from '../DartsToClose';
 import { IRootState } from 'store/types';
 import { DEFAULT_ELO, calculateGameElos } from 'store/games/elo';
+import lawOfAverages from '../../../images/law-of-averages.gif';
 
 export interface ScoreboardProps {}
 
@@ -86,6 +87,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
   const [editModeScores, setEditModeScores] = useState<IEditRounds | undefined>();
+  const [responsePop, setResponsePop] = useState<string | undefined>();
 
   const postGameEloData = useMemo(() => {
     if (!gameData) {
@@ -134,6 +136,29 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const gameOver = !currentPlayer;
   const newGame = currentRound === 0 && sortedPlayers.every((other) => other.roundsPlayed === 0);
 
+  const showReaction = async (image: string) => {
+    setResponsePop(image);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setResponsePop(undefined);
+  }
+
+  const scoreReaction = (player: string) => {
+    const standardDeviation = (arr: number[], average: number) => {
+      const variance = arr.reduce((acc, score) => acc + ((score - average) ** 2)) / arr.length;
+      return Math.sqrt(variance);
+    };
+    const playerScores = rounds.map((round) => {
+      return round[currentPlayer];
+    });
+    const average = formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1);
+    const stdDev = standardDeviation(playerScores, average);
+
+    // Determine a reaction
+    if (stdDev > 40) {
+      showReaction(lawOfAverages);
+    }
+  }
+
   const saveScore = async (_newScore: number) => {
     if (saving || !currentPlayer) {
       return;
@@ -142,6 +167,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const newRounds = [...rounds];
     const newScore = _newScore > playerStats[currentPlayer].remaining ? -1 : _newScore;
     newRounds[currentRound][currentPlayer] = newScore;
+    scoreReaction(currentPlayer);
     const newGameData = buildGameData(gameData.config, newRounds);
     setGameData(newGameData);
     setScore('0');
@@ -276,7 +302,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   return (
     <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
-      <div style={{ flex: '1 0 auto', overflowX: 'scroll', maxWidth: '100%' }}>
+      <div style={{ flex: '1 0 min-content', overflowX: 'scroll', maxWidth: '100%' }}>
         <h2 style={{ textAlign: 'center' }}>Scores</h2>
         {newGame && <>Click player name to toggle their forfeit status prior to game beginning.</>}
         <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
@@ -349,6 +375,11 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
         <div style={{ marginTop: 5 }}>
           <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
           {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
+        </div>
+        <div style={{ display: 'flex', marginTop: 5, justifyContent: 'end' }}>
+          {responsePop && (
+            <img src={responsePop} alt="reaction-image" width="50%" />
+          )}
         </div>
       </div>
       {!gameOver && (
