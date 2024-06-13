@@ -378,7 +378,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
         </div>
         <div style={{ display: 'flex', marginTop: 5, justifyContent: 'end' }}>
           {responsePop && (
-            <img src={responsePop} alt="reaction-image" width="50%" />
+            <img src={responsePop} alt="Score reaction" width="50%" />
           )}
         </div>
       </div>
