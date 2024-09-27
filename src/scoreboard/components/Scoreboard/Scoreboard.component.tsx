@@ -7,7 +7,7 @@ import { selectors as leagueSelectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 import { IEditRounds, IGameData } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
-import { selectors as gamesSelectors } from 'store/games/slice';
+import { CLOSE_BREAKPOINT, selectors as gamesSelectors } from 'store/games/slice';
 import { playerUtils } from 'shared/utils';
 import { formatDivision, formatNumber } from 'shared/utils/numbers';
 import { hooks as gameHooks } from 'store/games/slice';
@@ -156,8 +156,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const average = formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1);
     const stdDev = standardDeviation(playerScores, average);
 
+    const scoresRev = [...playerScores].reverse();
+    const scoreLeft = playerStats[player].remaining
     // Determine a reaction
-    if (stdDev > 40) {
+    if (stdDev > 40 && scoresRev[0] < scoresRev[1] && scoreLeft > CLOSE_BREAKPOINT) {
       showReaction(lawOfAverages);
     }
     if ((_throws?.length ?? 0) > 0) {
