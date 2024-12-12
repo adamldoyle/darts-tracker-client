@@ -7,7 +7,7 @@ import { selectors as leagueSelectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 import { IEditRounds, IGameData } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
-import { selectors as gamesSelectors } from 'store/games/slice';
+import { CLOSE_BREAKPOINT, selectors as gamesSelectors } from 'store/games/slice';
 import { playerUtils } from 'shared/utils';
 import { formatDivision, formatNumber } from 'shared/utils/numbers';
 import { hooks as gameHooks } from 'store/games/slice';
@@ -15,6 +15,8 @@ import { DartsToClose } from '../DartsToClose';
 import { IRootState } from 'store/types';
 import { DEFAULT_ELO, calculateGameElos } from 'store/games/elo';
 import lawOfAverages from '../../../images/law-of-averages.gif';
+import bagOfDicks from '../../../images/bag-of-dicks.gif';
+import shanghai from '../../../images/shanghai.gif';
 
 export interface ScoreboardProps {}
 
@@ -83,6 +85,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
+  const [throws, setThrows] = useState<number[]>([]);
   const [score, setScore] = useState('0');
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
@@ -142,7 +145,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     setResponsePop(undefined);
   }
 
-  const scoreReaction = (player: string) => {
+  const scoreReaction = (player: string, _throws?: number[]) => {
     const standardDeviation = (arr: number[], average: number) => {
       const variance = arr.reduce((acc, score) => acc + ((score - average) ** 2)) / arr.length;
       return Math.sqrt(variance);
@@ -153,13 +156,24 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const average = formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1);
     const stdDev = standardDeviation(playerScores, average);
 
+    const scoresRev = [...playerScores].reverse();
+    const scoreLeft = playerStats[player].remaining
     // Determine a reaction
-    if (stdDev > 40) {
+    if (stdDev > 40 && scoresRev[0] < scoresRev[1] && scoreLeft > CLOSE_BREAKPOINT) {
       showReaction(lawOfAverages);
+    }
+    if ((_throws?.length ?? 0) > 0) {
+      if (_throws?.includes(20) && _throws?.includes(5) && _throws?.includes(1)) {
+        showReaction(bagOfDicks);
+      }
+      const lowestValue = _throws?.sort()?.[0]
+      if (lowestValue && _throws?.includes(lowestValue*2) && _throws?.includes(lowestValue*3)) {
+        showReaction(shanghai)
+      }
     }
   }
 
-  const saveScore = async (_newScore: number) => {
+  const saveScore = async (_newScore: number, _throws?: number[]) => {
     if (saving || !currentPlayer) {
       return;
     }
@@ -167,9 +181,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const newRounds = [...rounds];
     const newScore = _newScore > playerStats[currentPlayer].remaining ? -1 : _newScore;
     newRounds[currentRound][currentPlayer] = newScore;
-    scoreReaction(currentPlayer);
+    scoreReaction(currentPlayer, _throws);
     const newGameData = buildGameData(gameData.config, newRounds);
     setGameData(newGameData);
+    setThrows([])
     setScore('0');
     scoreRef.current?.focus();
     await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
@@ -179,7 +194,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const addScore = (evt?: FormEvent) => {
     evt?.preventDefault();
-    saveScore(parseScore(score));
+    saveScore(parseScore(score), throws);
   };
 
   const addBust = () => {
@@ -191,6 +206,11 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const handleDartboardClick = (details: DartboardClickDetails) => {
     setScore((parseScore(score) + details.score).toString());
+    setThrows((prevThrows) => {
+      const updates = [...prevThrows];
+      updates.push(details.score);
+      return updates;
+    })
   };
 
   const onEditScoreChange = (roundNum: number, player: string) => (evt: ChangeEvent<HTMLInputElement>) => {
