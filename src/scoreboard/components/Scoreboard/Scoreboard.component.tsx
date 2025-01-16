@@ -438,7 +438,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           </div>
         )}
       </div>
-      {!(search && search.includes('noads')) && <img src={bannerads} />}
+      {!(search && search.includes('noads')) && <img src={bannerads} alt="Ads" />}
     </div>
   );
 };
