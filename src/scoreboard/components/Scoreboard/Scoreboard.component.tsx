@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, FC, FormEvent, ChangeEvent, useMemo } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { API } from 'aws-amplify';
 import { useSelector } from 'react-redux';
 import { Box, CircularProgress, Tooltip, Typography } from '@material-ui/core';
@@ -17,7 +17,6 @@ import { DEFAULT_ELO, calculateGameElos } from 'store/games/elo';
 import lawOfAverages from '../../../images/law-of-averages.gif';
 import bagOfDicks from '../../../images/bag-of-dicks.gif';
 import shanghai from '../../../images/shanghai.gif';
-import bannerads from './bannerads.jpg';
 
 export interface ScoreboardProps {}
 
@@ -74,7 +73,6 @@ const displayElo = (
 };
 
 export const Scoreboard: FC<ScoreboardProps> = () => {
-  const { search } = useLocation();
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
 
@@ -438,7 +436,6 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
           </div>
         )}
       </div>
-      {!(search && search.includes('noads')) && <img src={bannerads} alt="Ads" />}
     </div>
   );
 };
