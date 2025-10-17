@@ -5,7 +5,7 @@ import { Box, makeStyles, Hidden } from '@material-ui/core';
 import { selectors } from 'store/leagues/slice';
 import { LeaguesList } from 'leagues/components';
 import { Scoreboard } from 'scoreboard/components';
-import { CreateGamePage, GamesListPage } from 'games/components';
+import { CreateGamePage, GamesListPage, CricketGamePage } from 'games/components';
 import { AppToolbar } from '../AppToolbar';
 import { QuickBar } from '../QuickBar';
 import { EloHistoryPage, StatsPage } from 'stats/components';
@@ -38,6 +38,7 @@ const AppContents: FC = () => {
       <Route path="/stats/elo" exact component={EloHistoryPage} />
       <Route path="/stats/averageRounds" exact component={AverageRoundsHistoryPage} />
       <Route path="/" exact component={LandingPage} />
+      <Route path="/cricket" exact component={CricketGamePage} />
     </Switch>
   );
 };

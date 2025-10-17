@@ -37,3 +37,25 @@ export interface IGame {
 }
 
 export type ILeagueGamesState = IMonitoredState<IGame[]>;
+
+
+/**
+ * Cricket
+ */
+
+export interface IPlayerCricketStats {
+  roundsPlayed: number;
+}
+
+export interface ICricketGameData {
+  config: {
+    datePlayed: number;
+    playerCount: number;
+    /**
+     * Set of numbers to play
+     */
+    scoringNumbers: (number | undefined)[];
+  };
+  rounds: Record<number, [string, string, string]>[];
+  playerStats: Record<number, IPlayerCricketStats>;
+}

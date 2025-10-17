@@ -287,6 +287,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     return playerStats[player].forfeit;
   };
 
+  // FIXME: calculate emoji based on average
   const playerEmoji = (player: string) => {
     if (isQuitter(player)) {
       return <>&#128037;</>;
