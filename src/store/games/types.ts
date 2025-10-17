@@ -45,6 +45,7 @@ export type ILeagueGamesState = IMonitoredState<IGame[]>;
 
 export interface IPlayerCricketStats {
   roundsPlayed: number;
+  scoringNumberStatus: Record<number, number>;
 }
 
 export interface ICricketGameData {

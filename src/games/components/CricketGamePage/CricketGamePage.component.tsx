@@ -1,15 +1,13 @@
-import { FC, FormEvent, useCallback, useState } from 'react';
-import { Button, FormControl, FormHelperText, Grid, makeStyles, TextField, Typography } from '@material-ui/core';
-import { Formik, Form, useField } from 'formik';
+import { FC, FormEvent, useState } from 'react';
+import { Button, Grid, makeStyles } from '@material-ui/core';
+import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import shuffle from 'lodash.shuffle';
-import { handleRootErrors, RootError, InputField, SelectField, CheckboxField } from 'form/components';
+import { handleRootErrors, RootError, InputField, SelectField } from 'form/components';
 import { useDelayedFormValidation } from 'form/hooks';
-import { IAllPlayerGameStats, ICricketGameData, IGameData, IPlayerCricketStats, IRounds } from 'store/games/types';
-// import { Autocomplete } from '@material-ui/lab';
-import { Cancel, Clear, RadioButtonChecked, RadioButtonUnchecked } from '@material-ui/icons';
-import { DartboardClickDetails, DartboardWrapper, DartsToClose, saveGame } from '../../../scoreboard/components';
-import { buildGameData, calculatePlayerStats } from '../../../store/games/helpers';
+import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
+import { RadioButtonChecked, RadioButtonUnchecked } from '@material-ui/icons';
+import { DartboardClickDetails, DartboardWrapper } from '../../../scoreboard/components';
+import { config } from '@storybook/addon-actions';
 
 const Schema = Yup.object({
   scoringNumbers: Yup.array().of(Yup.number()).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
@@ -25,17 +23,64 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-export interface CricketGamePageProps {}
+const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, rounds: Record<number, [string, string, string]>[], ) => {
+  const playerScores = rounds.map((round) => {
+    return round[playerIndex];
+  }).flat();
+  const matchingScores = playerScores?.filter((score) => scoringNumber === 25 ? (score?.endsWith(`25`) || score?.endsWith(`50`)) : score?.endsWith(`${scoringNumber}`)) ?? [];
+  let numberOfHits = 0;
+  matchingScores.forEach((score) => {
+    if (!score) return;
+    if (score.startsWith('S')) {
+      numberOfHits++;
+    } else if (score.startsWith('D')) {
+      numberOfHits = numberOfHits + 2;
+    } else if (score.startsWith('T')) {
+      numberOfHits = numberOfHits + 3;
+    }
+  });
+  return numberOfHits;
+}
 
-const parseScore = (rawScore: string): number => {
-  const score = parseInt(rawScore);
-  if (isNaN(score)) {
-    return 0;
+const buildCricketGameData = (config: {
+  datePlayed: number;
+  playerCount: number;
+  scoringNumbers: (number | undefined)[];
+}, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
+  const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
+    (acc, round) => {
+      Object.entries(round).forEach(([playerIndex, roundScore]) => {
+        const playerStats = acc[parseInt(playerIndex)] ?? { roundsPlayed: 0, scoringNumberStatus: {}};
+        playerStats.scoringNumberStatus = config.scoringNumbers.reduce<Record<number, number>>((acc, scoringNumber) => {
+          if (scoringNumber) {
+            acc[scoringNumber] = calculateNumberOfHits(scoringNumber, parseInt(playerIndex) ?? 0, rounds);
+          }
+          return acc;
+        }, {})
+        playerStats.roundsPlayed++;
+      });
+      return acc;
+    },
+    Array.from(Array(config.playerCount).keys()).reduce<Record<number, IPlayerCricketStats>>((acc, player) => {
+      acc[player ?? 0] = {
+        roundsPlayed: 0,
+        scoringNumberStatus: {},
+      };
+      return acc;
+    }, {})
+  );
+  const _gameData: ICricketGameData = { config, rounds, playerStats };
+  if (
+    !Object.values(_gameData.playerStats).find(
+      (stats) => stats.roundsPlayed < (rounds.length ?? 0),
+    )
+  ) {
+    _gameData.rounds.push({});
   }
-  return score;
-};
+  return _gameData;
+}
 
-interface SelectOption { label: string, value: string };
+export interface CricketGamePageProps {}
 
 export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const classes = useStyles();
@@ -60,36 +105,23 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const currentRound = rounds.length - 1;
 
   const remainingRoundPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
-    (player) => {
-      console.log(`Stats: ${playerStats[player]?.roundsPlayed}, Player: ${player}, rounds: ${rounds.length}, yet to go: ${playerStats[player]?.roundsPlayed ?? 0 !== rounds.length}`);
-      return (playerStats[player]?.roundsPlayed ?? 0) !== rounds.length
-    },
-  );
-  console.log("Current player", gameData?.config.playerCount, remainingRoundPlayers, rounds);
+    (player) => (playerStats[player]?.roundsPlayed ?? 0) !== rounds.length);
   const currentPlayer = remainingRoundPlayers[0];
 
+  const hasNumberCleared = (playerIndex: number, scoringNumber: number) => {
+    return (playerStats[playerIndex]?.scoringNumberStatus[scoringNumber] ?? 0) >= 3;
+  };
 
   const renderPlayerScore = (player: number, scoringNumber: number) => {
-    const playerScores = gameData?.rounds.map((round) => {
-      return round[player];
-    }).flat();
-    const matchingScores = playerScores?.filter((score) => scoringNumber === 25 ? (score?.endsWith(`25`) || score?.endsWith(`50`)) : score?.endsWith(`${scoringNumber}`)) ?? [];
-    let numberOfHits = 0;
-    matchingScores.forEach((score) => {
-      if (!score) return;
-      if (score.startsWith('S')) {
-        numberOfHits++;
-      } else if (score.startsWith('D')) {
-        numberOfHits = numberOfHits + 2;
-      } else if (score.startsWith('T')) {
-        numberOfHits = numberOfHits + 3;
-      }
-    });
+    const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
+    const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
+      (player) => (playerStats[player]?.scoringNumberStatus[scoringNumber] ?? 0) < 3);
+    const color = notClearedPlayers.length > 0 ? 'primary' : 'disabled';
     return (
       <>
-        {numberOfHits >= 1 ? <RadioButtonChecked /> : <RadioButtonUnchecked />}
-        {numberOfHits >= 2 ? <RadioButtonChecked /> : <RadioButtonUnchecked />}
-        {numberOfHits >= 3 ? <RadioButtonChecked /> : <RadioButtonUnchecked />}
+        {numberOfHits >= 1 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={color} />}
+        {numberOfHits >= 2 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={color} />}
+        {numberOfHits >= 3 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={color} />}
       </>
     );
   }
@@ -97,37 +129,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const saveScore = async (_newScore: string[]) => {
     if (saving) {
       return;
-    }
-    const buildCricketGameData = (config: {
-      datePlayed: number;
-      playerCount: number;
-      scoringNumbers: (number | undefined)[];
-    }, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
-      const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
-        (acc, round) => {
-          Object.entries(round).forEach(([playerIndex, roundScore]) => {
-            const playerStats = acc[parseInt(playerIndex)] ?? { roundsPlayed: 0};
-            playerStats.roundsPlayed++;
-          });
-          return acc;
-        },
-        Array.from(Array(config.playerCount).keys()).reduce<Record<number, IPlayerCricketStats>>((acc, player) => {
-          acc[player ?? 0] = {
-            roundsPlayed: 0,
-          };
-          return acc;
-        }, {})
-      );
-      console.log("Calculated player stats", playerStats);
-      const _gameData: ICricketGameData = { config, rounds, playerStats };
-      if (
-        !Object.values(_gameData.playerStats).find(
-          (stats) => stats.roundsPlayed < (gameData?.rounds.length ?? 0),
-        )
-      ) {
-        _gameData.rounds.push({});
-      }
-      return _gameData;
     }
     setSaving(true);
     if (!gameData?.config) return;
@@ -231,21 +232,12 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
         initialValues={emptyFormDefaults}
         validationSchema={Schema}
         onSubmit={handleRootErrors(async (values) => {
-          const playerStats = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).reduce<Record<number, IPlayerCricketStats>>((acc, player) => {
-            acc[player ?? 0] = {
-              roundsPlayed: 0,
-            };
-            return acc;
-          }, {});
-          setGameData((existing) => ({
-            config: {
-              datePlayed: existing?.config.datePlayed ?? new Date().getTime(),
-              scoringNumbers: [...values.scoringNumbers],
-              playerCount: values.playerCount,
-            },
-            rounds: [{}],
-            playerStats: playerStats,
-          } as ICricketGameData));
+          const _newGameData = buildCricketGameData({
+            datePlayed: new Date().getTime(),
+            scoringNumbers: [...values.scoringNumbers],
+            playerCount: values.playerCount ?? 2,
+          }, [{}]);
+          setGameData(_newGameData);
         })}
       >
         {(formProps) => (
