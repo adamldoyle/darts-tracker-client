@@ -7,7 +7,6 @@ import { useDelayedFormValidation } from 'form/hooks';
 import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked } from '@material-ui/icons';
 import { DartboardClickDetails, DartboardWrapper } from '../../../scoreboard/components';
-import { config } from '@storybook/addon-actions';
 
 const Schema = Yup.object({
   scoringNumbers: Yup.array().of(Yup.number()).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
@@ -42,21 +41,45 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
   return numberOfHits;
 }
 
+const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number) => {
+  //Assuming some synchronous code here, we check the 'status' of each player after the calculations are made
+  roundScore.forEach((dartThrown) => {
+    const hitNumber = parseInt(dartThrown.replace(/[A-Z]+/g, ''));
+    console.log("Dart hit", playerIndex, hitNumber);
+    if (isNaN(hitNumber)) return;
+    const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
+    if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`)) {
+      console.log("Calculating scoring chance for dart, current hits by player", currentPlayerScoringStatus[hitNumber]);
+      if ((currentPlayerScoringStatus[hitNumber] ?? 0) > 3) {
+        const scoreIncrease = currentPlayerScoringStatus[hitNumber] - 3;
+        const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3)
+        playersKeysToIterate.forEach((pk) => {
+          console.log("Increasing player score", pk, scoreIncrease);
+          playerStats[parseInt(pk)].scoringTotal += scoreIncrease;
+        })
+      }
+    }
+  })
+}
+
 const buildCricketGameData = (config: {
   datePlayed: number;
   playerCount: number;
   scoringNumbers: (number | undefined)[];
 }, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
+  // FIXME: the iterating of other player scores is not calculating correctly
   const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
     (acc, round) => {
       Object.entries(round).forEach(([playerIndex, roundScore]) => {
-        const playerStats = acc[parseInt(playerIndex)] ?? { roundsPlayed: 0, scoringNumberStatus: {}};
-        playerStats.scoringNumberStatus = config.scoringNumbers.reduce<Record<number, number>>((acc, scoringNumber) => {
+        const playerStats = acc[parseInt(playerIndex)];
+        playerStats.scoringNumberStatus = config.scoringNumbers.reduce<Record<number, number>>((scoringNumberStatusAcc, scoringNumber) => {
           if (scoringNumber) {
-            acc[scoringNumber] = calculateNumberOfHits(scoringNumber, parseInt(playerIndex) ?? 0, rounds);
+            const currentNumberOfHits = scoringNumberStatusAcc[scoringNumber] ?? 0
+            scoringNumberStatusAcc[scoringNumber] = currentNumberOfHits + calculateNumberOfHits(scoringNumber, parseInt(playerIndex) ?? 0, [{ 0: roundScore }]);
           }
-          return acc;
-        }, {})
+          return scoringNumberStatusAcc;
+        }, {});
+        iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0);
         playerStats.roundsPlayed++;
       });
       return acc;
@@ -65,6 +88,7 @@ const buildCricketGameData = (config: {
       acc[player ?? 0] = {
         roundsPlayed: 0,
         scoringNumberStatus: {},
+        scoringTotal: 0,
       };
       return acc;
     }, {})
@@ -186,7 +210,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             <tbody>
               {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
                 <tr key={player}>
-                  <td>{<input type="text" className={classes.formField} />}</td>
+                  <td>Player #{player}: {gameData?.playerStats?.[player]?.scoringTotal ?? 0}</td>
                   {gameData?.config.scoringNumbers.map((scoringNumber) => (
                     <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
                       {renderPlayerScore(player, scoringNumber ?? 0)}
