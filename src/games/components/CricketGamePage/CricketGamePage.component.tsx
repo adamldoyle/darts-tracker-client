@@ -144,6 +144,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
 
   const renderPlayerScore = (player: number, scoringNumber: number) => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
+    // FIXME: this is not calculating correctly
     const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
       (player) => (playerStats[player]?.scoringNumberStatus[scoringNumber] ?? 0) < 3);
     const color = notClearedPlayers.length > 0 ? 'primary' : 'disabled';
@@ -245,20 +246,18 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        // textDecoration: gameData.config.forfeits?.includes(player) ? 'line-through' : undefined,
                       }}
                     >
                       {scoringNumber === 25 ? 'Bull' : scoringNumber}
                     </div>
                   </td>
                 ))}
-              {/*  FIXME: running score?*/}
               </tr>
             </thead>
             <tbody>
               {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
                 <tr key={player}>
-                  <td>Player #{player}:&#9;<b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
+                  <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9;<b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
                   {gameData?.config.scoringNumbers.map((scoringNumber) => (
                     <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
                       {renderPlayerScore(player, scoringNumber ?? 0)}
@@ -276,11 +275,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
               <div>
                 {Object.entries(round).map(([playerIndex, scores]) => (
                   <p>
-                    <b>Player</b> {playerIndex}&#9;--&#9;{scores.map((scoreBed, index) =>
+                    <b>Player</b> #{parseInt(playerIndex)+1}&#9;--&#9;{scores.map((scoreBed, index) =>
                     <span>
-                        {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
+                      {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
                       {index === scores?.length - 1 ? '' : ', '}
-                      </span>
+                    </span>
                   )}
                   </p>
                 ))}
@@ -289,7 +288,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
           ))}
         </div>
         <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-          <h2>Current player</h2>
+          <h2>Current player: #{currentPlayer + 1}</h2>
+          <div style={{ marginTop: 20 }}>
+            <DartboardWrapper size={400} onClick={handleDartboardClick} />
+          </div>
           <div style={{ marginTop: 20 }}>
             <form onSubmit={addScore}>
               <input value={dart1} onChange={(evt) => setDart1(evt.target.value)}/>
@@ -297,9 +299,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
               <input value={dart3} onChange={(evt) => setDart3(evt.target.value)}/>
               <input type="submit" value="Save score" />
             </form>
-          </div>
-          <div style={{ marginTop: 20 }}>
-            <DartboardWrapper size={400} onClick={handleDartboardClick} />
           </div>
         </div>
       </div>
