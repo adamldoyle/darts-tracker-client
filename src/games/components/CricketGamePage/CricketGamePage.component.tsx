@@ -190,8 +190,50 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
 
   return (
     <>
+      <Formik
+        {...formikValidationProps}
+        initialValues={emptyFormDefaults}
+        validationSchema={Schema}
+        onSubmit={handleRootErrors(async (values) => {
+          const _newGameData = buildCricketGameData({
+            datePlayed: new Date().getTime(),
+            scoringNumbers: [...values.scoringNumbers],
+            playerCount: values.playerCount ?? 2,
+          }, [{}]);
+          setGameData(_newGameData);
+        })}
+      >
+        {(formProps) => (
+          <Form onSubmit={onFormSubmit(formProps)}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <RootError formProps={formProps} />
+              </Grid>
+              <Grid item xs={4}>
+                <SelectField
+                  field="scoringNumbers"
+                  label="Numbers to play"
+                  options={
+                    [...Array.from(Array(21).keys()), 25].map((number) => ({ value: number, label: `${number}` })) ?? []
+                  }
+                  multiple
+                  className={classes.formField}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <InputField field="playerCount" label="Players" type="number" inputProps={{ min: 1 }} className={classes.formField} />
+              </Grid>
+              <Grid item xs={3}>
+                <Button variant="contained" color="primary" type="submit" disabled={formProps.isSubmitting}>
+                  Reset game
+                </Button>
+              </Grid>
+            </Grid>
+          </Form>
+        )}
+      </Formik>
       <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 0 min-content', overflowX: 'scroll', maxWidth: '100%' }}>
+        <div style={{ width: '100%' }}>
           <h2 style={{ textAlign: 'center' }}>Cricket</h2>
           <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
             <thead>
@@ -216,7 +258,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             <tbody>
               {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
                 <tr key={player}>
-                  <td>Player #{player}: {gameData?.playerStats?.[player]?.scoringTotal ?? 0}</td>
+                  <td>Player #{player}:&#9;<b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
                   {gameData?.config.scoringNumbers.map((scoringNumber) => (
                     <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
                       {renderPlayerScore(player, scoringNumber ?? 0)}
@@ -227,8 +269,26 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             </tbody>
           </table>
         </div>
-        {/* running list of round scores, highlighting hits/scores*/}
-        <div style={{ flex: '1 0 auto' }}>
+        <div>
+          {rounds.map((round, index) => (
+            <div>
+              <div><b>Round #{index + 1}</b></div>
+              <div>
+                {Object.entries(round).map(([playerIndex, scores]) => (
+                  <p>
+                    <b>Player</b> {playerIndex}&#9;--&#9;{scores.map((scoreBed, index) =>
+                    <span>
+                        {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
+                      {index === scores?.length - 1 ? '' : ', '}
+                      </span>
+                  )}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
           <h2>Current player</h2>
           <div style={{ marginTop: 20 }}>
             <form onSubmit={addScore}>
@@ -242,68 +302,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             <DartboardWrapper size={400} onClick={handleDartboardClick} />
           </div>
         </div>
-        <div>
-          {rounds.map((round, index) => (
-            <div>
-              <div><b>Round #{index + 1}</b></div>
-              <div>
-                {Object.entries(round).map(([playerIndex, scores]) => (
-                  <p>
-                    <b>Player</b> {playerIndex}&#9;--&#9;{scores.map((scoreBed, index) =>
-                      <span>
-                        {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
-                        {index === scores?.length - 1 ? '' : ', '}
-                      </span>
-                    )}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
-      <Formik
-        {...formikValidationProps}
-        initialValues={emptyFormDefaults}
-        validationSchema={Schema}
-        onSubmit={handleRootErrors(async (values) => {
-          const _newGameData = buildCricketGameData({
-            datePlayed: new Date().getTime(),
-            scoringNumbers: [...values.scoringNumbers],
-            playerCount: values.playerCount ?? 2,
-          }, [{}]);
-          setGameData(_newGameData);
-        })}
-      >
-        {(formProps) => (
-          <Form onSubmit={onFormSubmit(formProps)}>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <RootError formProps={formProps} />
-              </Grid>
-              <Grid item xs={12}>
-                <SelectField
-                  field="scoringNumbers"
-                  label="Numbers to play"
-                  options={
-                    [...Array.from(Array(21).keys()), 25].map((number) => ({ value: number, label: `${number}` })) ?? []
-                  }
-                  multiple
-                  className={classes.formField}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <InputField field="playerCount" label="Players" type="number" inputProps={{ min: 1 }} className={classes.formField} />
-              </Grid>
-              <Grid item xs={12}>
-                <Button variant="contained" color="primary" type="submit" disabled={formProps.isSubmitting}>
-                  Reset game
-                </Button>
-              </Grid>
-            </Grid>
-          </Form>
-        )}
-      </Formik>
     </>
   );
 };
