@@ -6,7 +6,13 @@ import { handleRootErrors, RootError, InputField, SelectField } from 'form/compo
 import { useDelayedFormValidation } from 'form/hooks';
 import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked } from '@material-ui/icons';
-import { DartboardClickDetails, DartboardWrapper } from '../../../scoreboard/components';
+import {
+  DartboardClickDetails,
+  DartboardWrapper,
+  getScoringNumberFromBed,
+  isDoubleScore,
+  isTripleScore,
+} from '../../../scoreboard/components';
 
 const Schema = Yup.object({
   scoringNumbers: Yup.array().of(Yup.number()).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
@@ -26,17 +32,17 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
   const playerScores = rounds.map((round) => {
     return round[playerIndex];
   }).flat();
-  const matchingScores = playerScores?.filter((score) => scoringNumber === 25 ? (score?.endsWith(`25`) || score?.endsWith(`50`)) : score?.endsWith(`${scoringNumber}`)) ?? [];
+  const matchingScores = playerScores?.filter((score) => getScoringNumberFromBed(score) === scoringNumber) ?? [];
   let numberOfHits = 0;
   matchingScores.forEach((score) => {
     if (!score) return;
-    if (score.startsWith('S')) {
-      numberOfHits++;
-    } else if (score.startsWith('D')) {
+     if (isDoubleScore(score)) {
       numberOfHits = numberOfHits + 2;
-    } else if (score.startsWith('T')) {
+    } else if (isTripleScore(score)) {
       numberOfHits = numberOfHits + 3;
-    }
+    } else {
+       numberOfHits++;
+     }
   });
   return numberOfHits;
 }
@@ -44,7 +50,7 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
 const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number) => {
   //Assuming some synchronous code here, we check the 'status' of each player after the calculations are made
   roundScore.forEach((dartThrown) => {
-    const hitNumber = parseInt(dartThrown.replace(/[A-Z]+/g, ''));
+    const hitNumber = getScoringNumberFromBed(dartThrown);
     console.log("Dart hit", playerIndex, hitNumber);
     if (isNaN(hitNumber)) return;
     const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
@@ -239,12 +245,17 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
         <div>
           {rounds.map((round, index) => (
             <div>
-              <div>Round {index + 1}</div>
+              <div><b>Round #{index + 1}</b></div>
               <div>
                 {Object.entries(round).map(([playerIndex, scores]) => (
-                  <div>
-                    Player {playerIndex} scores: {scores.toString()}
-                  </div>
+                  <p>
+                    <b>Player</b> {playerIndex}&#9;--&#9;{scores.map((scoreBed, index) =>
+                      <span>
+                        {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
+                        {index === scores?.length - 1 ? '' : ', '}
+                      </span>
+                    )}
+                  </p>
                 ))}
               </div>
             </div>
