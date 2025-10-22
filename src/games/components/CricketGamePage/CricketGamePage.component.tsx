@@ -51,17 +51,18 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
   //Assuming some synchronous code here, we check the 'status' of each player after the calculations are made
   roundScore.forEach((dartThrown) => {
     const hitNumber = getScoringNumberFromBed(dartThrown);
-    console.log("Dart hit", playerIndex, hitNumber);
     if (isNaN(hitNumber)) return;
     const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`)) {
-      console.log("Calculating scoring chance for dart, current hits by player", currentPlayerScoringStatus[hitNumber]);
       if ((currentPlayerScoringStatus[hitNumber] ?? 0) > 3) {
-        const scoreIncrease = currentPlayerScoringStatus[hitNumber] - 3;
+        const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
+        const priorScoresCounted = currentPlayerScoringStatus[hitNumber] ?? 0;
+        console.log(`Dart hit with user #${playerIndex} at capacity ${hitNumber}`, hitCountWithDart, priorScoresCounted);
         const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3)
+        console.log("Iterating scores for other players,", playersKeysToIterate, (playersKeysToIterate && playersKeysToIterate.length > 0) ? playerStats[parseInt(playersKeysToIterate[0])] : 'none');
         playersKeysToIterate.forEach((pk) => {
-          console.log("Increasing player score", pk, scoreIncrease);
-          playerStats[parseInt(pk)].scoringTotal += scoreIncrease;
+          console.log("Increasing player score", pk, hitCountWithDart);
+          playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
         })
       }
     }
@@ -73,7 +74,6 @@ const buildCricketGameData = (config: {
   playerCount: number;
   scoringNumbers: (number | undefined)[];
 }, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
-  // FIXME: the iterating of other player scores is not calculating correctly
   const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
     (acc, round) => {
       Object.entries(round).forEach(([playerIndex, roundScore]) => {
@@ -81,10 +81,11 @@ const buildCricketGameData = (config: {
         playerStats.scoringNumberStatus = config.scoringNumbers.reduce<Record<number, number>>((scoringNumberStatusAcc, scoringNumber) => {
           if (scoringNumber) {
             const currentNumberOfHits = scoringNumberStatusAcc[scoringNumber] ?? 0
-            scoringNumberStatusAcc[scoringNumber] = currentNumberOfHits + calculateNumberOfHits(scoringNumber, parseInt(playerIndex) ?? 0, [{ 0: roundScore }]);
+            const addedHits = calculateNumberOfHits(scoringNumber, parseInt(playerIndex) ?? 0, [{ 0: roundScore }]);
+            scoringNumberStatusAcc[scoringNumber] = currentNumberOfHits + addedHits;
           }
           return scoringNumberStatusAcc;
-        }, {});
+        }, playerStats.scoringNumberStatus ?? {});
         iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0);
         playerStats.roundsPlayed++;
       });
