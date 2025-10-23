@@ -26,6 +26,14 @@ const useStyles = makeStyles(() => ({
   formField: {
     maxWidth: 400,
   },
+  cricketTable: {
+    '& tr td:nth-child(even)': {
+      backgroundColor: 'lightgray',
+    },
+    '& tr td': {
+      padding: '8px',
+    }
+  },
 }));
 
 const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, rounds: Record<number, [string, string, string]>[], ) => {
@@ -53,16 +61,21 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
     if (isNaN(hitNumber)) return;
     const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`)) {
-      if ((currentPlayerScoringStatus[hitNumber] ?? 0) > 3) {
-        const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
-        const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3)
+      const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
+      const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
+      if (hitTotal > 3) {
+        const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
         playersKeysToIterate.forEach((pk) => {
           playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
         })
       }
-      // iterate on number of hits
-      const addedHits = calculateNumberOfHits(hitNumber, playerIndex, [{ [playerIndex]: [dartThrown, '', ''] }]);
-      currentPlayerScoringStatus[hitNumber] = currentPlayerScoringStatus[hitNumber] + addedHits;
+    }
+    // iterate on number of hits
+    const addedHits = calculateNumberOfHits(hitNumber, playerIndex, [{ [playerIndex]: [dartThrown, '', ''] }]);
+    if (currentPlayerScoringStatus[hitNumber] !== undefined) {
+      currentPlayerScoringStatus[hitNumber] += addedHits;
+    } else {
+      currentPlayerScoringStatus[hitNumber] = addedHits;
     }
   })
 }
@@ -137,12 +150,12 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
     const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
       (player) => (playerStats[player]?.scoringNumberStatus[scoringNumber] ?? 0) < 3);
-    const color = notClearedPlayers.length > 0 ? 'primary' : 'disabled';
+    const color = notClearedPlayers.length > 0 ? numberOfHits >= 3 ? 'secondary' : 'primary' : 'disabled';
     return (
       <>
-        {numberOfHits >= 1 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={color} />}
-        {numberOfHits >= 2 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={color} />}
-        {numberOfHits >= 3 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={color} />}
+        {numberOfHits >= 1 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={'disabled'} />}
+        {numberOfHits >= 2 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={'disabled'} />}
+        {numberOfHits >= 3 ? <RadioButtonChecked color={color} /> : <RadioButtonUnchecked color={'disabled'} />}
       </>
     );
   }
@@ -195,11 +208,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
       >
         {(formProps) => (
           <Form onSubmit={onFormSubmit(formProps)}>
-            <Grid container spacing={2}>
+            <Grid container spacing={2} justify="center">
               <Grid item xs={12}>
                 <RootError formProps={formProps} />
               </Grid>
-              <Grid item xs={4}>
+              <Grid item>
                 <SelectField
                   field="scoringNumbers"
                   label="Numbers to play"
@@ -209,11 +222,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                   multiple
                   className={classes.formField}
                 />
-              </Grid>
-              <Grid item xs={3}>
                 <InputField field="playerCount" label="Players" type="number" inputProps={{ min: 1 }} className={classes.formField} />
-              </Grid>
-              <Grid item xs={3}>
                 <Button variant="contained" color="primary" type="submit" disabled={formProps.isSubmitting}>
                   Reset game
                 </Button>
@@ -223,87 +232,97 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
         )}
       </Formik>
       <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
-        <div style={{ width: '100%' }}>
-          <h2 style={{ textAlign: 'center' }}>Cricket</h2>
-          <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
-            <thead>
-              <tr>
-                <td>Players</td>
-                {gameData?.config.scoringNumbers.sort().map((scoringNumber) => (
-                  <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {scoringNumber === 25 ? 'Bull' : scoringNumber}
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
-                <tr key={player}>
-                  <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9;<b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
-                  {gameData?.config.scoringNumbers.map((scoringNumber) => (
-                    <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
-                      {renderPlayerScore(player, scoringNumber ?? 0)}
+        <Grid container spacing={2} justify="center">
+          <Grid item xs={12}><h2 style={{ textAlign: 'center' }}>[Cut-Throat] Cricket</h2></Grid>
+          <Grid item xs={12}>
+            <div style={{ flex: '1 0 auto', justifyItems: 'center', marginTop: 20 }}>
+              <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
+                <thead>
+                <tr>
+                  <td style={{ fontWeight: 'bold' }}>Player</td>
+                  <td style={{ fontWeight: 'bold' }}>Score</td>
+                  {gameData?.config.scoringNumbers.sort().map((scoringNumber) => (
+                    <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {scoringNumber === 25 ? 'Bull' : scoringNumber}
+                      </div>
                     </td>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div>
-          {rounds.map((round, index) => (
-            <div>
-              <div><b>Round #{index + 1}</b></div>
-              <div>
-                {Object.entries(round).map(([playerIndex, scores]) => (
-                  <p>
-                    <b>Player</b> #{parseInt(playerIndex)+1}&#9;--&#9;{scores.map((scoreBed, index) =>
-                    <span>
-                      {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
-                      {index === scores?.length - 1 ? '' : ', '}
-                    </span>
-                  )}
-                  </p>
+                </thead>
+                <tbody>
+                {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
+                  <tr key={player}>
+                    <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9;</td>
+                    <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
+                    {gameData?.config.scoringNumbers.map((scoringNumber) => (
+                      <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
+                        {renderPlayerScore(player, scoringNumber ?? 0)}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
+                </tbody>
+              </table>
+            </div>
+          </Grid>
+          <Grid item xs={4}>
+            <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>{Object.entries(gameData.playerStats).map(([player, stats]) => {
+              return (
+                <div>
+                  <div><b>Player #{parseInt(player)+1}</b></div>
+                  <div>
+                    <p>Score: {stats.scoringTotal}</p>
+                    <p>Rounds: {stats.roundsPlayed}</p>
+                    <p>Hits: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
+                  </div>
+                </div>
+              )
+            })}</div>
+          </Grid>
+          <Grid item xs={4}>
+            <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
+              <h2>Current player: #{currentPlayer + 1}</h2>
+              <div>
+                <DartboardWrapper size={400} onClick={handleDartboardClick} />
+              </div>
+              <div style={{ marginTop: 20 }}>
+                <form onSubmit={addScore}>
+                  <input value={dart1} onChange={(evt) => setDart1(evt.target.value)}/>
+                  <input value={dart2} onChange={(evt) => setDart2(evt.target.value)}/>
+                  <input value={dart3} onChange={(evt) => setDart3(evt.target.value)}/>
+                  <input type="submit" value="Save score" />
+                </form>
               </div>
             </div>
-          ))}
-        </div>
-        <div>
-          <pre>{Object.entries(gameData.playerStats).map(([player, stats]) => {
-            return (
-              <div>
-                <div><b>Player #{player}</b></div>
+          </Grid>
+          <Grid item xs={4}>
+            <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
+              {rounds.map((round, index) => (
                 <div>
-                  <p>Played: {stats.roundsPlayed}</p>
-                  <p>Score: {stats.scoringTotal}</p>
-                  <p>Status: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
+                  <div><b>Round #{index + 1}</b></div>
+                  <div>
+                    {Object.entries(round).map(([playerIndex, scores]) => (
+                      <p>
+                        <b>Player</b> #{parseInt(playerIndex)+1}&#9;--&#9;{scores.map((scoreBed, index) =>
+                          <span>
+                      {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
+                            {index === scores?.length - 1 ? '' : ', '}
+                    </span>
+                      )}
+                      </p>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          })}</pre>
-        </div>
-        <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-          <h2>Current player: #{currentPlayer + 1}</h2>
-          <div style={{ marginTop: 20 }}>
-            <DartboardWrapper size={400} onClick={handleDartboardClick} />
-          </div>
-          <div style={{ marginTop: 20 }}>
-            <form onSubmit={addScore}>
-              <input value={dart1} onChange={(evt) => setDart1(evt.target.value)}/>
-              <input value={dart2} onChange={(evt) => setDart2(evt.target.value)}/>
-              <input value={dart3} onChange={(evt) => setDart3(evt.target.value)}/>
-              <input type="submit" value="Save score" />
-            </form>
-          </div>
-        </div>
+              ))}
+            </div>
+          </Grid>
+        </Grid>
       </div>
     </>
   );
