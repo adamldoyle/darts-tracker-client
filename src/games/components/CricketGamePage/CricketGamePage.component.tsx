@@ -66,7 +66,11 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
       if (hitTotal > 3) {
         const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
         playersKeysToIterate.forEach((pk) => {
-          playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
+          if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
+            playerStats[parseInt(pk)].scoringTotal += ((hitCountWithDart - (currentPlayerScoringStatus[hitNumber] ?? 0)) * hitNumber);
+          } else {
+            playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
+          }
         })
       }
     }
@@ -272,7 +276,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             </div>
           </Grid>
           <Grid item xs={4}>
-            <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>{Object.entries(gameData.playerStats).map(([player, stats]) => {
+            <div style={{ paddingLeft: '20%' }}>{Object.entries(gameData.playerStats).map(([player, stats]) => {
               return (
                 <div>
                   <div><b>Player #{parseInt(player)+1}</b></div>
@@ -302,7 +306,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             </div>
           </Grid>
           <Grid item xs={4}>
-            <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
+            <div style={{ paddingLeft: '20%' }}>
               {rounds.map((round, index) => (
                 <div>
                   <div><b>Round #{index + 1}</b></div>
