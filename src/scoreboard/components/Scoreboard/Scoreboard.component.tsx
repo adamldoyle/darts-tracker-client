@@ -272,7 +272,8 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     return playerStats[player].remaining === 0 && playerStats[player].ranking === 1;
   };
   const isLeader = (player: string) => {
-    return !isWinner(player) && playerStats[player].total > 0 && playerStats[player].ranking === 1;
+    const playersAverage = Object.keys(playerStats).map((p) => formatDivision(playerStats[p].total, playerStats[p].roundsPlayed, 1)).sort().reverse();
+    return !isWinner(player) && playerStats[player].total > 0 && formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1) === playersAverage?.[0];
   };
   const isLoser = (player: string) => {
     const nonQuitters = sortedPlayers.filter((other) => !other.forfeit);
