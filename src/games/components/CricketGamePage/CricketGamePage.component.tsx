@@ -48,7 +48,6 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
 }
 
 const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number) => {
-  //Assuming some synchronous code here, we check the 'status' of each player after the calculations are made
   roundScore.forEach((dartThrown) => {
     const hitNumber = getScoringNumberFromBed(dartThrown);
     if (isNaN(hitNumber)) return;
@@ -56,15 +55,14 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`)) {
       if ((currentPlayerScoringStatus[hitNumber] ?? 0) > 3) {
         const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
-        const priorScoresCounted = currentPlayerScoringStatus[hitNumber] ?? 0;
-        console.log(`Dart hit with user #${playerIndex} at capacity ${hitNumber}`, hitCountWithDart, priorScoresCounted);
         const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3)
-        console.log("Iterating scores for other players,", playersKeysToIterate, (playersKeysToIterate && playersKeysToIterate.length > 0) ? playerStats[parseInt(playersKeysToIterate[0])] : 'none');
         playersKeysToIterate.forEach((pk) => {
-          console.log("Increasing player score", pk, hitCountWithDart);
           playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
         })
       }
+      // iterate on number of hits
+      const addedHits = calculateNumberOfHits(hitNumber, playerIndex, [{ [playerIndex]: [dartThrown, '', ''] }]);
+      currentPlayerScoringStatus[hitNumber] = currentPlayerScoringStatus[hitNumber] + addedHits;
     }
   })
 }
@@ -78,14 +76,6 @@ const buildCricketGameData = (config: {
     (acc, round) => {
       Object.entries(round).forEach(([playerIndex, roundScore]) => {
         const playerStats = acc[parseInt(playerIndex)];
-        playerStats.scoringNumberStatus = config.scoringNumbers.reduce<Record<number, number>>((scoringNumberStatusAcc, scoringNumber) => {
-          if (scoringNumber) {
-            const currentNumberOfHits = scoringNumberStatusAcc[scoringNumber] ?? 0
-            const addedHits = calculateNumberOfHits(scoringNumber, parseInt(playerIndex) ?? 0, [{ 0: roundScore }]);
-            scoringNumberStatusAcc[scoringNumber] = currentNumberOfHits + addedHits;
-          }
-          return scoringNumberStatusAcc;
-        }, playerStats.scoringNumberStatus ?? {});
         iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0);
         playerStats.roundsPlayed++;
       });
@@ -145,7 +135,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
 
   const renderPlayerScore = (player: number, scoringNumber: number) => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
-    // FIXME: this is not calculating correctly
     const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
       (player) => (playerStats[player]?.scoringNumberStatus[scoringNumber] ?? 0) < 3);
     const color = notClearedPlayers.length > 0 ? 'primary' : 'disabled';
@@ -167,7 +156,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     const newRounds = [...rounds];
     newRounds[currentRound][currentPlayer] = [_newScore?.[0] ?? 0, _newScore?.[1] ?? 0, _newScore?.[2] ?? 0];
     const newGameData = buildCricketGameData(gameData?.config, newRounds);
-    console.log("Updating game data", newGameData);
     setGameData(newGameData);
     setDart1('')
     setDart2('');
@@ -287,6 +275,20 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
               </div>
             </div>
           ))}
+        </div>
+        <div>
+          <pre>{Object.entries(gameData.playerStats).map(([player, stats]) => {
+            return (
+              <div>
+                <div><b>Player #{player}</b></div>
+                <div>
+                  <p>Played: {stats.roundsPlayed}</p>
+                  <p>Score: {stats.scoringTotal}</p>
+                  <p>Status: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
+                </div>
+              </div>
+            )
+          })}</pre>
         </div>
         <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
           <h2>Current player: #{currentPlayer + 1}</h2>
