@@ -56,7 +56,7 @@ export interface ICricketGameData {
     /**
      * Set of numbers to play
      */
-    scoringNumbers: (number | undefined)[];
+    scoringNumbers?: number[];
   };
   rounds: Record<number, [string, string, string]>[];
   playerStats: Record<number, IPlayerCricketStats>;

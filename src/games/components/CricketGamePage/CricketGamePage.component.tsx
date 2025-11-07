@@ -15,7 +15,7 @@ import {
 } from '../../../scoreboard/components';
 
 const Schema = Yup.object({
-  scoringNumbers: Yup.array().of(Yup.number()).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
+  scoringNumbers: Yup.array().of(Yup.number().default(0)).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
   playerCount: Yup.number(),
   randomize: Yup.boolean().default(false),
 }).required();
@@ -87,7 +87,7 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
 const buildCricketGameData = (config: {
   datePlayed: number;
   playerCount: number;
-  scoringNumbers: (number | undefined)[];
+  scoringNumbers?: number[];
 }, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
   const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
     (acc, round) => {
@@ -116,6 +116,11 @@ const buildCricketGameData = (config: {
     _gameData.rounds.push({});
   }
   return _gameData;
+}
+
+const getTotalHits = (scoringNumberStatus: Record<number, number>, scoringNums: number[]) => {
+  const sumScores = (scores: number[]) => scores.reduce<number>((acc, score) => acc + score, 0);
+  return sumScores(Object.entries(scoringNumberStatus).filter(([scoreNum,_]) => scoringNums.includes(parseInt(scoreNum))).map(([_, score]) => score <= 3 ? score : 3));
 }
 
 export interface CricketGamePageProps {}
@@ -195,6 +200,71 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     }
   };
 
+  const playerHasMostHits = (player: number) => {
+    const userStats = playerStats[player];
+    // Calculate total hits
+    const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
+    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
+    return allPlayerHitCount.every((s) => s < totalHits)
+  }
+
+  const playerHasWinningScore = (player: number) => {
+    const userStats = playerStats[player];
+    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => ps.scoringTotal)
+    // Player has least points scored on them
+    return otherPlayerStats.every((s) => s > userStats.scoringTotal);
+  }
+
+  const playerHasLeastHits = (player: number) => {
+    const userStats = playerStats[player];
+    // Calculate total hits
+    const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
+    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
+    console.log(`Player #${player} hits ${totalHits}`, allPlayerHitCount);
+    return allPlayerHitCount.every((s) => s > totalHits);
+  }
+
+  const playerHasLosingScore = (player: number) => {
+    const userStats = playerStats[player];
+    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => ps.scoringTotal)
+    // Player has more points scored on them
+    return otherPlayerStats.every((s) => s < userStats.scoringTotal);
+  }
+
+  const isWinner = (player: number) => {
+    const userStats = playerStats[player];
+    if (!userStats) return false;
+    const unfinishedEntries = Object.entries(userStats.scoringNumberStatus).filter(([scoreNum,_]) => (gameData?.config?.scoringNumbers ?? []).includes(parseInt(scoreNum))).filter(([scoreNum, hits]) => hits < 3);
+    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => ps.scoringTotal)
+    console.log(`Player #${player} left to hit ${unfinishedEntries}`, otherPlayerStats);
+    return unfinishedEntries?.length === 0 && otherPlayerStats.every((s) => s > userStats.scoringTotal);
+  };
+  const isLeader = (player: number) => {
+    const userStats = playerStats[player];
+    if (!userStats) return false;
+    return !isWinner(player) && (playerHasWinningScore(player) || playerHasMostHits(player));
+  };
+  const isLoser = (player: number) => {
+    return (
+      rounds.length > 1 &&
+      !isLeader(player) &&
+      (playerHasLosingScore(player) || playerHasLeastHits(player))
+    );
+  };
+
+  const playerEmoji = (player: number) => {
+    if (isWinner(player)) {
+      return <>&#128081;</>;
+    } else if (isLeader(player)) {
+      return <>&#11088;</>;
+    } else if (isLoser(player)) {
+      return <>&#128169;</>;
+    }
+    return null;
+  };
+
+  const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(parseInt(player)));
+
   return (
     <>
       <Formik
@@ -245,7 +315,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 <tr>
                   <td style={{ fontWeight: 'bold' }}>Player</td>
                   <td style={{ fontWeight: 'bold' }}>Score</td>
-                  {gameData?.config.scoringNumbers.sort().map((scoringNumber) => (
+                  {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
                     <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
                       <div
                         style={{
@@ -262,9 +332,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 <tbody>
                 {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
                   <tr key={player}>
-                    <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9;</td>
+                    <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9; {playerEmoji(player)}</td>
                     <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
-                    {gameData?.config.scoringNumbers.map((scoringNumber) => (
+                    {gameData?.config.scoringNumbers?.map((scoringNumber) => (
                       <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
                         {renderPlayerScore(player, scoringNumber ?? 0)}
                       </td>
@@ -290,7 +360,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             })}</div>
           </Grid>
           <Grid item xs={4}>
-            <div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
+            {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
               <h2>Current player: #{currentPlayer + 1}</h2>
               <div>
                 <DartboardWrapper size={400} onClick={handleDartboardClick} />
@@ -303,7 +373,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                   <input type="submit" value="Save score" />
                 </form>
               </div>
-            </div>
+            </div>) : (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
+              <h2>Game over!</h2>
+              <p>Winner: Player #{(Object.keys(gameData.playerStats).map(parseInt).find((player) => isWinner(player)) ?? 0) + 1}</p>
+            </div>)}
           </Grid>
           <Grid item xs={4}>
             <div style={{ paddingLeft: '20%' }}>
