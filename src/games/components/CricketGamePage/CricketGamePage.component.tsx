@@ -55,12 +55,12 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
   return numberOfHits;
 }
 
-const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number) => {
+const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number, scoringNumbers: number[] = []) => {
   roundScore.forEach((dartThrown) => {
     const hitNumber = getScoringNumberFromBed(dartThrown);
     if (isNaN(hitNumber)) return;
     const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
-    if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`)) {
+    if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber)) {
       const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
       if (hitTotal > 3) {
@@ -93,7 +93,7 @@ const buildCricketGameData = (config: {
     (acc, round) => {
       Object.entries(round).forEach(([playerIndex, roundScore]) => {
         const playerStats = acc[parseInt(playerIndex)];
-        iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0);
+        iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0, config.scoringNumbers);
         playerStats.roundsPlayed++;
       });
       return acc;
