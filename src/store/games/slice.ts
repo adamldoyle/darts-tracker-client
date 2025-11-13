@@ -298,7 +298,7 @@ const selectRoundsAboveScoreRankings = createSelector(
   },
 );
 
-const CLOSE_BREAKPOINT = 30;
+export const CLOSE_BREAKPOINT = 30;
 
 const selectAverageRoundsToCloseRankings = createSelector(
   baseSelectors.selectData,

@@ -62,9 +62,11 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
     const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
     const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber)) {
+      const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
       const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
       if (hitTotal > 3) {
+        const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
             playerStats[parseInt(pk)].scoringTotal += (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber);
@@ -75,6 +77,7 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
       }
     }
     // iterate on number of hits
+    const addedHits = calculateNumberOfHits(hitNumber, playerIndex, [{ [playerIndex]: [dartThrown, '', ''] }]);
     if (currentPlayerScoringStatus[hitNumber] !== undefined) {
       currentPlayerScoringStatus[hitNumber] += hitCountWithDart;
     } else {

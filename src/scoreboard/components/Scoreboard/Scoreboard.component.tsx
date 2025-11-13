@@ -7,7 +7,7 @@ import { selectors as leagueSelectors } from 'store/leagues/slice';
 import { DartboardWrapper, DartboardClickDetails } from '../DartboardWrapper';
 import { IEditRounds, IGameData } from 'store/games/types';
 import { buildGameData, comparePlayerStats } from 'store/games/helpers';
-import { selectors as gamesSelectors } from 'store/games/slice';
+import { CLOSE_BREAKPOINT, selectors as gamesSelectors } from 'store/games/slice';
 import { playerUtils } from 'shared/utils';
 import { formatDivision, formatNumber } from 'shared/utils/numbers';
 import { hooks as gameHooks } from 'store/games/slice';
@@ -15,6 +15,8 @@ import { DartsToClose } from '../DartsToClose';
 import { IRootState } from 'store/types';
 import { DEFAULT_ELO, calculateGameElos } from 'store/games/elo';
 import lawOfAverages from '../../../images/law-of-averages.gif';
+import bagOfDicks from '../../../images/bag-of-dicks.gif';
+import shanghai from '../../../images/shanghai.gif';
 
 export interface ScoreboardProps {}
 
@@ -83,6 +85,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
+  const [throws, setThrows] = useState<number[]>([]);
   const [score, setScore] = useState('0');
   const [saving, setSaving] = useState(false);
   const scoreRef = useRef<HTMLInputElement | null>(null);
@@ -140,11 +143,11 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     setResponsePop(image);
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setResponsePop(undefined);
-  }
+  };
 
-  const scoreReaction = (player: string) => {
+  const scoreReaction = (player: string, _throws?: number[]) => {
     const standardDeviation = (arr: number[], average: number) => {
-      const variance = arr.reduce((acc, score) => acc + ((score - average) ** 2)) / arr.length;
+      const variance = arr.reduce((acc, score) => acc + (score - average) ** 2) / arr.length;
       return Math.sqrt(variance);
     };
     const playerScores = rounds.map((round) => {
@@ -153,13 +156,24 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const average = formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1);
     const stdDev = standardDeviation(playerScores, average);
 
+    const scoresRev = [...playerScores].reverse();
+    const scoreLeft = playerStats[player].remaining;
     // Determine a reaction
-    if (stdDev > 40) {
+    if (stdDev > 40 && scoresRev[0] < scoresRev[1] && scoreLeft > CLOSE_BREAKPOINT) {
       showReaction(lawOfAverages);
     }
-  }
+    if ((_throws?.length ?? 0) > 0) {
+      if (_throws?.includes(20) && _throws?.includes(5) && _throws?.includes(1)) {
+        showReaction(bagOfDicks);
+      }
+      const lowestValue = _throws?.sort()?.[0];
+      if (lowestValue && _throws?.includes(lowestValue * 2) && _throws?.includes(lowestValue * 3)) {
+        showReaction(shanghai);
+      }
+    }
+  };
 
-  const saveScore = async (_newScore: number) => {
+  const saveScore = async (_newScore: number, _throws?: number[]) => {
     if (saving || !currentPlayer) {
       return;
     }
@@ -167,9 +181,10 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
     const newRounds = [...rounds];
     const newScore = _newScore > playerStats[currentPlayer].remaining ? -1 : _newScore;
     newRounds[currentRound][currentPlayer] = newScore;
-    scoreReaction(currentPlayer);
+    scoreReaction(currentPlayer, _throws);
     const newGameData = buildGameData(gameData.config, newRounds);
     setGameData(newGameData);
+    setThrows([]);
     setScore('0');
     scoreRef.current?.focus();
     await saveGame(selectedLeague?.leagueKey, gameId, newGameData);
@@ -179,7 +194,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const addScore = (evt?: FormEvent) => {
     evt?.preventDefault();
-    saveScore(parseScore(score));
+    saveScore(parseScore(score), throws);
   };
 
   const addBust = () => {
@@ -191,6 +206,11 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const handleDartboardClick = (details: DartboardClickDetails) => {
     setScore((parseScore(score) + details.score).toString());
+    setThrows((prevThrows) => {
+      const updates = [...prevThrows];
+      updates.push(details.score);
+      return updates;
+    });
   };
 
   const onEditScoreChange = (roundNum: number, player: string) => (evt: ChangeEvent<HTMLInputElement>) => {
@@ -302,121 +322,121 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
-      <div style={{ flex: '1 0 min-content', overflowX: 'scroll', maxWidth: '100%' }}>
-        <h2 style={{ textAlign: 'center' }}>Scores</h2>
-        {newGame && <>Click player name to toggle their forfeit status prior to game beginning.</>}
-        <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
-          <thead>
-            <tr>
-              <td></td>
-              {gameConfig.players.map((player) => (
-                <td key={player} style={{ fontWeight: 'bold' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      textDecoration: gameData.config.forfeits?.includes(player) ? 'line-through' : undefined,
-                    }}
-                    onClick={() => toggleForfeit(player)}
-                  >
-                    {playerUtils.displayName(player)} {playerEmoji(player)}
-                  </div>
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td></td>
-              {gameConfig.players.map((player) => (
-                <td key={player} style={{ fontWeight: 'bold', fontSize: '.8em' }}>
-                  {formatNumber(preGameElo?.[player] ?? DEFAULT_ELO, 1)}
-                </td>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rounds.map((round, roundNum) => (
-              <tr key={roundNum}>
-                <td style={{ fontWeight: 'bold' }}>{roundNum + 1}</td>
+    <div>
+      <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 0 min-content', overflowX: 'scroll', maxWidth: '100%' }}>
+          <h2 style={{ textAlign: 'center' }}>Scores</h2>
+          {newGame && <>Click player name to toggle their forfeit status prior to game beginning.</>}
+          <table style={{ borderWidth: 1, borderStyle: 'solid', width: '100%' }}>
+            <thead>
+              <tr>
+                <td></td>
                 {gameConfig.players.map((player) => (
-                  <td key={player}>{renderScore(roundNum, player)}</td>
+                  <td key={player} style={{ fontWeight: 'bold' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        textDecoration: gameData.config.forfeits?.includes(player) ? 'line-through' : undefined,
+                      }}
+                      onClick={() => toggleForfeit(player)}
+                    >
+                      {playerUtils.displayName(player)} {playerEmoji(player)}
+                    </div>
+                  </td>
                 ))}
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td style={{ fontWeight: 'bold' }}>Remaining</td>
-              {gameConfig.players.map((player) => (
-                <td key={player} style={{ fontWeight: 'bold' }}>
-                  {playerStats[player].remaining}
-                </td>
+              <tr>
+                <td></td>
+                {gameConfig.players.map((player) => (
+                  <td key={player} style={{ fontWeight: 'bold', fontSize: '.8em' }}>
+                    {formatNumber(preGameElo?.[player] ?? DEFAULT_ELO, 1)}
+                  </td>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rounds.map((round, roundNum) => (
+                <tr key={roundNum}>
+                  <td style={{ fontWeight: 'bold' }}>{roundNum + 1}</td>
+                  {gameConfig.players.map((player) => (
+                    <td key={player}>{renderScore(roundNum, player)}</td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 'bold' }}>Average</td>
-              {gameConfig.players.map((player) => (
-                <td key={player}>
-                  {playerStats[player].roundsPlayed
-                    ? formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1)
-                    : ''}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 'bold' }}>Ranking</td>
-              {gameConfig.players.map((player) => (
-                <td key={player} style={{ fontWeight: 'bold' }}>
-                  {playerStats[player].ranking}
-                </td>
-              ))}
-            </tr>
-          </tfoot>
-        </table>
-        <div style={{ marginTop: 5 }}>
-          <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
-          {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
-        </div>
-        <div style={{ display: 'flex', marginTop: 5, justifyContent: 'end' }}>
-          {responsePop && (
-            <img src={responsePop} alt="Score reaction" width="50%" />
-          )}
-        </div>
-      </div>
-      {!gameOver && (
-        <div style={{ flex: '1 0 auto' }}>
-          <h2>Current player</h2>
-          <h3>Name: {playerUtils.displayName(currentPlayer ?? '')}</h3>
-          <h3>Current round: {currentRound + 1}</h3>
-          <h3>
-            Remaining: {playerStats[currentPlayer].remaining}{' '}
-            <DartsToClose remaining={playerStats[currentPlayer].remaining} />
-          </h3>
-          {!editModeScores && (
-            <div style={{ marginTop: 20 }}>
-              <form onSubmit={addScore}>
-                <input ref={scoreRef} value={score} onChange={(evt) => setScore(evt.target.value)} />
-                <input type="submit" value="Save score" disabled={saving} />
-                <input type="button" value="Bust!" onClick={addBust} disabled={saving} />
-              </form>
-            </div>
-          )}
-          <div style={{ marginTop: 20 }}>
-            <DartboardWrapper size={400} onClick={handleDartboardClick} />
+            </tbody>
+            <tfoot>
+              <tr>
+                <td style={{ fontWeight: 'bold' }}>Remaining</td>
+                {gameConfig.players.map((player) => (
+                  <td key={player} style={{ fontWeight: 'bold' }}>
+                    {playerStats[player].remaining}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold' }}>Average</td>
+                {gameConfig.players.map((player) => (
+                  <td key={player}>
+                    {playerStats[player].roundsPlayed
+                      ? formatDivision(playerStats[player].total, playerStats[player].roundsPlayed, 1)
+                      : ''}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold' }}>Ranking</td>
+                {gameConfig.players.map((player) => (
+                  <td key={player} style={{ fontWeight: 'bold' }}>
+                    {playerStats[player].ranking}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
+          </table>
+          <div style={{ marginTop: 5 }}>
+            <input type="button" onClick={() => toggleEditMode()} value={editModeScores ? 'Save changes' : 'Oops'} />
+            {editModeScores && <input type="button" onClick={() => toggleEditMode(true)} value="Cancel" />}
+          </div>
+          <div style={{ display: 'flex', marginTop: 5, justifyContent: 'end' }}>
+            {responsePop && <img src={responsePop} alt="Score reaction" width="50%" />}
           </div>
         </div>
-      )}
-      {gameOver && (
-        <div style={{ flex: '1 0 auto' }}>
-          <h2>Rankings</h2>
-          {sortedPlayers.map((sortedPlayer) => (
-            <h3 key={sortedPlayer.email}>
-              {sortedPlayer.ranking}. {playerUtils.displayName(sortedPlayer.email)} {playerEmoji(sortedPlayer.email)}{' '}
-              {displayElo(sortedPlayer.email, preGameElo, postGameEloData)}
+        {!gameOver && (
+          <div style={{ flex: '1 0 auto' }}>
+            <h2>Current player</h2>
+            <h3>Name: {playerUtils.displayName(currentPlayer ?? '')}</h3>
+            <h3>Current round: {currentRound + 1}</h3>
+            <h3>
+              Remaining: {playerStats[currentPlayer].remaining}{' '}
+              <DartsToClose remaining={playerStats[currentPlayer].remaining} />
             </h3>
-          ))}
-        </div>
-      )}
+            {!editModeScores && (
+              <div style={{ marginTop: 20 }}>
+                <form onSubmit={addScore}>
+                  <input ref={scoreRef} value={score} onChange={(evt) => setScore(evt.target.value)} />
+                  <input type="submit" value="Save score" disabled={saving} />
+                  <input type="button" value="Bust!" onClick={addBust} disabled={saving} />
+                </form>
+              </div>
+            )}
+            <div style={{ marginTop: 20 }}>
+              <DartboardWrapper size={400} onClick={handleDartboardClick} />
+            </div>
+          </div>
+        )}
+        {gameOver && (
+          <div style={{ flex: '1 0 auto' }}>
+            <h2>Rankings</h2>
+            {sortedPlayers.map((sortedPlayer) => (
+              <h3 key={sortedPlayer.email}>
+                {sortedPlayer.ranking}. {playerUtils.displayName(sortedPlayer.email)} {playerEmoji(sortedPlayer.email)}{' '}
+                {displayElo(sortedPlayer.email, preGameElo, postGameEloData)}
+              </h3>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
