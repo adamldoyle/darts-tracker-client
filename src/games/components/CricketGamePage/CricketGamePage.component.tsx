@@ -60,14 +60,14 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
     const hitNumber = getScoringNumberFromBed(dartThrown);
     if (isNaN(hitNumber)) return;
     const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
+    const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber)) {
-      const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
+      const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
       if (hitTotal > 3) {
-        const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
-            playerStats[parseInt(pk)].scoringTotal += ((hitCountWithDart - (currentPlayerScoringStatus[hitNumber] ?? 0)) * hitNumber);
+            playerStats[parseInt(pk)].scoringTotal += (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber);
           } else {
             playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
           }
@@ -75,11 +75,10 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
       }
     }
     // iterate on number of hits
-    const addedHits = calculateNumberOfHits(hitNumber, playerIndex, [{ [playerIndex]: [dartThrown, '', ''] }]);
     if (currentPlayerScoringStatus[hitNumber] !== undefined) {
-      currentPlayerScoringStatus[hitNumber] += addedHits;
+      currentPlayerScoringStatus[hitNumber] += hitCountWithDart;
     } else {
-      currentPlayerScoringStatus[hitNumber] = addedHits;
+      currentPlayerScoringStatus[hitNumber] = hitCountWithDart;
     }
   })
 }
@@ -200,13 +199,13 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     const userStats = playerStats[player];
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
-    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
+    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
     return allPlayerHitCount.every((s) => s < totalHits)
   }
 
   const playerHasWinningScore = (player: number) => {
     const userStats = playerStats[player];
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
     // Player has least points scored on them
     return otherPlayerStats.every((s) => s > userStats.scoringTotal);
   }
@@ -215,14 +214,14 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     const userStats = playerStats[player];
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
-    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
+    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
     console.log(`Player #${player} hits ${totalHits}`, allPlayerHitCount);
     return allPlayerHitCount.every((s) => s > totalHits);
   }
 
   const playerHasLosingScore = (player: number) => {
     const userStats = playerStats[player];
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
     // Player has more points scored on them
     return otherPlayerStats.every((s) => s < userStats.scoringTotal);
   }
@@ -230,10 +229,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const isWinner = (player: number) => {
     const userStats = playerStats[player];
     if (!userStats) return false;
-    const unfinishedEntries = Object.entries(userStats.scoringNumberStatus).filter(([scoreNum,_]) => (gameData?.config?.scoringNumbers ?? []).includes(parseInt(scoreNum))).filter(([scoreNum, hits]) => hits < 3);
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([p, ps]) => ps.scoringTotal)
+    const unfinishedEntries = Object.entries(userStats.scoringNumberStatus).filter(([scoreNum,_]) => (gameData?.config?.scoringNumbers ?? []).includes(parseInt(scoreNum))).filter(([_, hits]) => hits < 3);
+    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const allScoringNumbersScored = !(gameData?.config?.scoringNumbers ?? []).some((scn) => Object.keys(userStats.scoringNumberStatus).includes(`${scn}`));
     console.log(`Player #${player} left to hit ${unfinishedEntries}`, otherPlayerStats);
-    return unfinishedEntries?.length === 0 && otherPlayerStats.every((s) => s > userStats.scoringTotal);
+    return allScoringNumbersScored && unfinishedEntries?.length === 0 && otherPlayerStats.every((s) => s > userStats.scoringTotal);
   };
   const isLeader = (player: number) => {
     const userStats = playerStats[player];
