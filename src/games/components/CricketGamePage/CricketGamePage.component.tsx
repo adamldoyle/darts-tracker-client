@@ -151,10 +151,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     (player) => (playerStats[player]?.roundsPlayed ?? 0) !== rounds.length);
   const currentPlayer = remainingRoundPlayers[0];
 
-  const hasNumberCleared = (playerIndex: number, scoringNumber: number) => {
-    return (playerStats[playerIndex]?.scoringNumberStatus[scoringNumber] ?? 0) >= 3;
-  };
-
   const renderPlayerScore = (player: number, scoringNumber: number) => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
     const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
