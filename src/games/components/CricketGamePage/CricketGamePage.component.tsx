@@ -55,6 +55,13 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
   return numberOfHits;
 }
 
+/**
+ * FIXME: separate scoring calculation based on game type or configuration
+ * @param playerStats
+ * @param roundScore
+ * @param playerIndex
+ * @param scoringNumbers
+ */
 const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number, scoringNumbers: number[] = []) => {
   roundScore.forEach((dartThrown) => {
     const hitNumber = getScoringNumberFromBed(dartThrown);
@@ -150,6 +157,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     (player) => (playerStats[player]?.roundsPlayed ?? 0) !== rounds.length);
   const currentPlayer = remainingRoundPlayers[0];
 
+  /**
+   * TODO: Render pending scores if available
+   * @param player
+   * @param scoringNumber
+   */
   const renderPlayerScore = (player: number, scoringNumber: number) => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
     const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
@@ -215,7 +227,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
     const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
-    console.log(`Player #${player} hits ${totalHits}`, allPlayerHitCount);
     return allPlayerHitCount.every((s) => s > totalHits);
   }
 
@@ -231,8 +242,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     if (!userStats) return false;
     const unfinishedEntries = Object.entries(userStats.scoringNumberStatus).filter(([scoreNum,_]) => (gameData?.config?.scoringNumbers ?? []).includes(parseInt(scoreNum))).filter(([_, hits]) => hits < 3);
     const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
-    const allScoringNumbersScored = !(gameData?.config?.scoringNumbers ?? []).some((scn) => Object.keys(userStats.scoringNumberStatus).includes(`${scn}`));
-    console.log(`Player #${player} left to hit ${unfinishedEntries}`, otherPlayerStats);
+    const allScoringNumbersScored = !(gameData?.config?.scoringNumbers ?? []).some((scn) => (userStats.scoringNumberStatus[scn] ?? 0) < 3);
     return allScoringNumbersScored && unfinishedEntries?.length === 0 && otherPlayerStats.every((s) => s > userStats.scoringTotal);
   };
   const isLeader = (player: number) => {
@@ -259,7 +269,20 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     return null;
   };
 
+  /**
+   * TODO: Enable game to continue while player is finished
+   * - placement vs all hits done?
+   */
   const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(parseInt(player)));
+
+  /**
+   * TODO:
+   * - Hide form after start
+   * - Deprioritize stats/round display
+   * - remove input boxes and show current round darts (clearable)
+   * - persist game state in local storage
+   * - user names/emails
+   */
 
   return (
     <>
