@@ -91,5 +91,10 @@
     "hygen-react-ts": "^1.0.1",
     "react-scripts": "4.0.3",
     "typescript": "^4.1.2"
-  }
+  },
+  "volta": {
+    "node": "16.20.2",
+    "yarn": "1.22.22"
+  },
+  "packageManager": "yarn@1.22.19"
 }
