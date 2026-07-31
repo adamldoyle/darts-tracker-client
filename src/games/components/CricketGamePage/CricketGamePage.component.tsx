@@ -1,11 +1,7 @@
 import { FC, FormEvent, useState } from 'react';
-import { Button, Grid, makeStyles } from '@material-ui/core';
-import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
-import { handleRootErrors, RootError, InputField, SelectField } from 'form/components';
-import { useDelayedFormValidation } from 'form/hooks';
+import { Button, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
-import { RadioButtonChecked, RadioButtonUnchecked } from '@material-ui/icons';
+import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
 import {
   DartboardClickDetails,
   DartboardWrapper,
@@ -13,16 +9,10 @@ import {
   isDoubleScore,
   isTripleScore,
 } from '../../../scoreboard/components';
+import { useHistory } from 'react-router-dom';
+import { playerUtils } from 'shared/utils';
 
-const Schema = Yup.object({
-  scoringNumbers: Yup.array().of(Yup.number().default(0)).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
-  playerCount: Yup.number(),
-  randomize: Yup.boolean().default(false),
-}).required();
-type SchemaType = Yup.InferType<typeof Schema>;
-const emptyFormDefaults = Schema.getDefault();
-
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   formField: {
     maxWidth: 400,
   },
@@ -34,11 +24,36 @@ const useStyles = makeStyles(() => ({
       padding: '8px',
     }
   },
+  drawer: {
+    marginTop: 80,
+    border: `1px solid grey`,
+    height: 'calc(100% - 95px)',
+    width: 500,
+  },
+  largeDrawer: {
+    marginTop: 80,
+    border: `1px solid grey`,
+    height: 'calc(100% - 95px)',
+    width: 750,
+  },
+  drawerLeft: {
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  drawerRight: {
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  title: {
+    marginTop: theme.spacing(3),
+    marginLeft: theme.spacing(3),
+    marginRight: theme.spacing(3),
+  },
 }));
 
-const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, rounds: Record<number, [string, string, string]>[], ) => {
+const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Record<string, [string, string, string]>[], ) => {
   const playerScores = rounds.map((round) => {
-    return round[playerIndex];
+    return round[player];
   }).flat();
   const matchingScores = playerScores?.filter((score) => getScoringNumberFromBed(score) === scoringNumber) ?? [];
   let numberOfHits = 0;
@@ -55,15 +70,15 @@ const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, round
   return numberOfHits;
 }
 
-const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number, scoringNumbers: number[] = []) => {
+const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [string, string, string], player: string, scoringNumbers: number[] = []) => {
   roundScore.forEach((dartThrown) => {
     const hitNumber = getScoringNumberFromBed(dartThrown);
     if (isNaN(hitNumber)) return;
-    const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
+    const currentPlayerScoringStatus = playerStats[player]?.scoringNumberStatus ?? {};
     const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber)) {
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
-      const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
+      const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[pk].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && pk !== player)
       if (hitTotal > 3) {
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
@@ -85,20 +100,20 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
 
 const buildCricketGameData = (config: {
   datePlayed: number;
-  playerCount: number;
+  players: string[];
   scoringNumbers?: number[];
 }, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
-  const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
+  const playerStats = rounds.reduce<Record<string, IPlayerCricketStats>>(
     (acc, round) => {
-      Object.entries(round).forEach(([playerIndex, roundScore]) => {
-        const playerStats = acc[parseInt(playerIndex)];
-        iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0, config.scoringNumbers);
+      Object.entries(round).forEach(([player, roundScore]) => {
+        const playerStats = acc[player];
+        iterateScoresForPlayerRoundScore(acc, roundScore, player, config.scoringNumbers);
         playerStats.roundsPlayed++;
       });
       return acc;
     },
-    Array.from(Array(config.playerCount).keys()).reduce<Record<number, IPlayerCricketStats>>((acc, player) => {
-      acc[player ?? 0] = {
+    config.players.reduce<Record<string, IPlayerCricketStats>>((acc, player) => {
+      acc[player] = {
         roundsPlayed: 0,
         scoringNumberStatus: {},
         scoringTotal: 0,
@@ -126,13 +141,15 @@ export interface CricketGamePageProps {}
 
 export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const classes = useStyles();
-  const { formikValidationProps, onSubmit: onFormSubmit } = useDelayedFormValidation<SchemaType>();
+  const history = useHistory();
+
+  const pageState: Partial<ICricketGameData> = (history?.location?.state ?? {}) as ICricketGameData;
 
   const [gameData, setGameData] = useState<ICricketGameData>({
     config: {
-      datePlayed: new Date().getTime(),
-      scoringNumbers: [20, 19, 18, 17, 16, 15, 25],
-      playerCount: 2,
+      datePlayed: pageState.config?.datePlayed ?? new Date().getTime(),
+      scoringNumbers:  pageState.config?.scoringNumbers ?? [20, 19, 18, 17, 16, 15, 25],
+      players: pageState.config?.players ?? ['Player 1', 'Player 2'],
     },
     rounds: [{}],
     playerStats: {}
@@ -141,18 +158,20 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const [dart2, setDart2] = useState<string>('');
   const [dart3, setDart3] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [showFunStats, setShowFunStats] = useState(false);
+  const [showRounds, setShowRounds] = useState(false);
 
   const playerStats = gameData?.playerStats ?? {};
   const rounds = gameData?.rounds ?? [{}];
   const currentRound = rounds.length - 1;
 
-  const remainingRoundPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
+  const remainingRoundPlayers = gameData?.config.players.filter(
     (player) => (playerStats[player]?.roundsPlayed ?? 0) !== rounds.length);
   const currentPlayer = remainingRoundPlayers[0];
 
-  const renderPlayerScore = (player: number, scoringNumber: number) => {
+  const renderPlayerScore = (player: string, scoringNumber: number) => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
-    const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
+    const notClearedPlayers = gameData?.config.players.filter(
       (player) => (playerStats[player]?.scoringNumberStatus[scoringNumber] ?? 0) < 3);
     const color = notClearedPlayers.length > 0 ? numberOfHits >= 3 ? 'secondary' : 'primary' : 'disabled';
     return (
@@ -195,52 +214,50 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     }
   };
 
-  const playerHasMostHits = (player: number) => {
+  const playerHasMostHits = (player: string) => {
     const userStats = playerStats[player];
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
-    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
+    const allPlayerHitCount = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
     return allPlayerHitCount.every((s) => s < totalHits)
   }
 
-  const playerHasWinningScore = (player: number) => {
+  const playerHasWinningScore = (player: string) => {
     const userStats = playerStats[player];
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => ps.scoringTotal)
     // Player has least points scored on them
     return otherPlayerStats.every((s) => s > userStats.scoringTotal);
   }
 
-  const playerHasLeastHits = (player: number) => {
+  const playerHasLeastHits = (player: string) => {
     const userStats = playerStats[player];
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
-    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
-    console.log(`Player #${player} hits ${totalHits}`, allPlayerHitCount);
+    const allPlayerHitCount = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
     return allPlayerHitCount.every((s) => s > totalHits);
   }
 
-  const playerHasLosingScore = (player: number) => {
+  const playerHasLosingScore = (player: string) => {
     const userStats = playerStats[player];
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => ps.scoringTotal)
     // Player has more points scored on them
     return otherPlayerStats.every((s) => s < userStats.scoringTotal);
   }
 
-  const isWinner = (player: number) => {
+  const isWinner = (player: string) => {
     const userStats = playerStats[player];
     if (!userStats) return false;
     const unfinishedEntries = Object.entries(userStats.scoringNumberStatus).filter(([scoreNum,_]) => (gameData?.config?.scoringNumbers ?? []).includes(parseInt(scoreNum))).filter(([_, hits]) => hits < 3);
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => ps.scoringTotal)
     const allScoringNumbersScored = !(gameData?.config?.scoringNumbers ?? []).some((scn) => Object.keys(userStats.scoringNumberStatus).includes(`${scn}`));
-    console.log(`Player #${player} left to hit ${unfinishedEntries}`, otherPlayerStats);
     return allScoringNumbersScored && unfinishedEntries?.length === 0 && otherPlayerStats.every((s) => s > userStats.scoringTotal);
   };
-  const isLeader = (player: number) => {
+  const isLeader = (player: string) => {
     const userStats = playerStats[player];
     if (!userStats) return false;
     return !isWinner(player) && (playerHasWinningScore(player) || playerHasMostHits(player));
   };
-  const isLoser = (player: number) => {
+  const isLoser = (player: string) => {
     return (
       rounds.length > 1 &&
       !isLeader(player) &&
@@ -248,7 +265,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     );
   };
 
-  const playerEmoji = (player: number) => {
+  const playerEmoji = (player: string) => {
     if (isWinner(player)) {
       return <>&#128081;</>;
     } else if (isLeader(player)) {
@@ -259,52 +276,24 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     return null;
   };
 
-  const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(parseInt(player)));
+  const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(player));
 
   return (
     <>
-      <Formik
-        {...formikValidationProps}
-        initialValues={emptyFormDefaults}
-        validationSchema={Schema}
-        onSubmit={handleRootErrors(async (values) => {
-          const _newGameData = buildCricketGameData({
-            datePlayed: new Date().getTime(),
-            scoringNumbers: [...values.scoringNumbers],
-            playerCount: values.playerCount ?? 2,
-          }, [{}]);
-          setGameData(_newGameData);
-        })}
-      >
-        {(formProps) => (
-          <Form onSubmit={onFormSubmit(formProps)}>
-            <Grid container spacing={2} justify="center">
-              <Grid item xs={12}>
-                <RootError formProps={formProps} />
-              </Grid>
-              <Grid item>
-                <SelectField
-                  field="scoringNumbers"
-                  label="Numbers to play"
-                  options={
-                    [...Array.from(Array(21).keys()), 25].map((number) => ({ value: number, label: `${number}` })) ?? []
-                  }
-                  multiple
-                  className={classes.formField}
-                />
-                <InputField field="playerCount" label="Players" type="number" inputProps={{ min: 1 }} className={classes.formField} />
-                <Button variant="contained" color="primary" type="submit" disabled={formProps.isSubmitting}>
-                  Reset game
-                </Button>
-              </Grid>
-            </Grid>
-          </Form>
-        )}
-      </Formik>
-      <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
+      <Box style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
         <Grid container spacing={2} justify="center">
-          <Grid item xs={12}><h2 style={{ textAlign: 'center' }}>[Cut-Throat] Cricket</h2></Grid>
-          <Grid item xs={12}>
+          <Grid item xs={2}>
+            <Button variant="outlined" color="default" onClick={() => setShowFunStats(true)}>
+              Stats
+            </Button>
+          </Grid>
+          <Grid item xs={8}><h2 style={{ textAlign: 'center' }}>[Cut-Throat] Cricket</h2></Grid>
+          <Grid item xs={2}>
+            <Button variant="outlined" color="default" onClick={() => setShowRounds(true)}>
+              Rounds
+            </Button>
+          </Grid>
+          <Grid item>
             <div style={{ flex: '1 0 auto', justifyItems: 'center', marginTop: 20 }}>
               <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
                 <thead>
@@ -326,9 +315,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 </tr>
                 </thead>
                 <tbody>
-                {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
+                {gameData?.config.players.map((player) => (
                   <tr key={player}>
-                    <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9; {playerEmoji(player)}</td>
+                    <td>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
                     <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
                     {gameData?.config.scoringNumbers?.map((scoringNumber) => (
                       <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
@@ -341,27 +330,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
               </table>
             </div>
           </Grid>
-          <Grid item xs={4}>
-            <div style={{ paddingLeft: '20%' }}>{Object.entries(gameData.playerStats).map(([player, stats]) => {
-              return (
-                <div>
-                  <div><b>Player #{parseInt(player)+1}</b></div>
-                  <div>
-                    <p>Score: {stats.scoringTotal}</p>
-                    <p>Rounds: {stats.roundsPlayed}</p>
-                    <p>Hits: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
-                  </div>
-                </div>
-              )
-            })}</div>
-          </Grid>
-          <Grid item xs={4}>
+          <Grid item >
             {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-              <h2>Current player: #{currentPlayer + 1}</h2>
-              <div>
-                <DartboardWrapper size={400} onClick={handleDartboardClick} />
-              </div>
-              <div style={{ marginTop: 20 }}>
+              <h2>Current player: {playerUtils.displayName(currentPlayer)}</h2>
+              <div style={{ marginTop: 10,marginBottom: 10 }}>
                 <form onSubmit={addScore}>
                   <input value={dart1} onChange={(evt) => setDart1(evt.target.value)}/>
                   <input value={dart2} onChange={(evt) => setDart2(evt.target.value)}/>
@@ -369,20 +341,83 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                   <input type="submit" value="Save score" />
                 </form>
               </div>
+              <div>
+                <DartboardWrapper size={400} onClick={handleDartboardClick} />
+              </div>
             </div>) : (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
               <h2>Game over!</h2>
-              <p>Winner: Player #{(Object.keys(gameData.playerStats).map(parseInt).find((player) => isWinner(player)) ?? 0) + 1}</p>
+              <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
             </div>)}
           </Grid>
-          <Grid item xs={4}>
-            <div style={{ paddingLeft: '20%' }}>
+          <Drawer anchor="left"
+                  open={showFunStats}
+                  variant="persistent"
+                  onClose={() => setShowFunStats(false)}
+                  classes={{
+                    paper: `${classes.drawer} ${classes.drawerLeft}`,
+                  }}
+          >
+            <Box display="flex" justifyContent="space-between" alignItems="center" className={classes.title}>
+              <Box>
+                <Typography component="h3" variant="h5">
+                  Player Stats
+                </Typography>
+              </Box>
+              <Box>
+                <Tooltip title="Close drawer">
+                  <IconButton data-testid={`floating-drawer-close-button`} onClick={() => setShowFunStats(false)} size="small">
+                    <Close />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+            <Box height="100%" padding={4} style={{ overflowY: 'scroll'}}>
+              {!Object.entries(gameData.playerStats).length && (<Typography variant="subtitle1">No stats</Typography>)}
+              {Object.entries(gameData.playerStats).map(([player, stats]) => {
+                return (
+                  <div>
+                    <div><b>{playerUtils.displayName(player)}</b></div>
+                    <div>
+                      <p>Score: {stats.scoringTotal}</p>
+                      <p>Rounds: {stats.roundsPlayed}</p>
+                      <p>Hits: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </Box>
+          </Drawer>
+          <Drawer anchor="right"
+                  open={showRounds}
+                  variant="persistent"
+                  onClose={() => setShowRounds(false)}
+                  classes={{
+                    paper: `${classes.drawer} ${classes.drawerRight}`,
+                  }}
+          >
+            <Box display="flex" justifyContent="space-between" alignItems="center" className={classes.title}>
+              <Box>
+                <Typography component="h3" variant="h5">
+                  Rounds
+                </Typography>
+              </Box>
+              <Box>
+                <Tooltip title="Close drawer">
+                  <IconButton data-testid={`floating-drawer-close-button`} onClick={() => setShowRounds(false)} size="small">
+                    <Close />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+            <Box height="100%" padding={4} style={{ overflowY: 'scroll'}}>
+              {!rounds.length && (<Typography variant="subtitle1">No rounds played</Typography>)}
               {rounds.map((round, index) => (
                 <div>
                   <div><b>Round #{index + 1}</b></div>
                   <div>
-                    {Object.entries(round).map(([playerIndex, scores]) => (
+                    {Object.entries(round).map(([player, scores]) => (
                       <p>
-                        <b>Player</b> #{parseInt(playerIndex)+1}&#9;--&#9;{scores.map((scoreBed, index) =>
+                        <b>{playerUtils.displayName(player)}</b>&#9;--&#9;{scores.map((scoreBed, index) =>
                           <span>
                       {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
                             {index === scores?.length - 1 ? '' : ', '}
@@ -393,10 +428,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                   </div>
                 </div>
               ))}
-            </div>
-          </Grid>
+            </Box>
+          </Drawer>
         </Grid>
-      </div>
+      </Box>
     </>
   );
 };

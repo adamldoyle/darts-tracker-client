@@ -43,6 +43,16 @@ export type ILeagueGamesState = IMonitoredState<IGame[]>;
  * Cricket
  */
 
+export enum GameMode {
+  OHONE = 'OHONE',
+  CRICKET = 'CRICKET',
+}
+
+export const GameModeOptions = [
+  { value: GameMode.OHONE, label: 'Oh-One (Default)'},
+  { value: GameMode.CRICKET, label: 'CRICKET'},
+]
+
 export interface IPlayerCricketStats {
   roundsPlayed: number;
   scoringNumberStatus: Record<number, number>;
@@ -52,12 +62,14 @@ export interface IPlayerCricketStats {
 export interface ICricketGameData {
   config: {
     datePlayed: number;
-    playerCount: number;
+    players: string[];
     /**
      * Set of numbers to play
      */
     scoringNumbers?: number[];
   };
-  rounds: Record<number, [string, string, string]>[];
-  playerStats: Record<number, IPlayerCricketStats>;
+  rounds: Record<string, [string, string, string]>[];
+  playerStats: Record<string, IPlayerCricketStats>;
 }
+
+export const defaultCricketNumbers = [20, 19, 18, 17, 16, 15, 25];
