@@ -1,5 +1,5 @@
 import { FC, FormEvent, useState } from 'react';
-import { Button, Dialog, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
+import { Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked, Close, Edit } from '@material-ui/icons';
 import {
@@ -50,6 +50,9 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: theme.spacing(3),
     marginRight: theme.spacing(3),
   },
+  playerRound: {
+    marginLeft: theme.spacing(1),
+  }
 }));
 
 const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Record<string, [string, string, string]>[], ) => {
@@ -85,9 +88,9 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCri
       if (hitTotal > 3) {
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
-            playerStats[parseInt(pk)].scoringTotal += (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber);
+            playerStats[pk].scoringTotal += (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber);
           } else {
-            playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
+            playerStats[pk].scoringTotal += (hitCountWithDart * hitNumber);
           }
         })
       }
@@ -379,13 +382,35 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
         </Box>
         <Box height="10%" width="100%">
           <Grid container>
-            <Grid item xs={3}>
+            <Grid item xs={1}>
               <Button variant="text" color="default" onClick={() => setShowFunStats(true)}>
                 Stats
               </Button>
             </Grid>
             <Grid item xs={6}>
-              <Box display="flex" justifyContent="space-between">
+              <Box display="flex" width="100%" style={{ paddingLeft: '32px', overflowX: 'scroll', scrollbarWidth: 'none'}}>
+                <Box display="flex" flexDirection="row-reverse">
+                  {!rounds.length && (<Box><Typography variant="subtitle1">No rounds played</Typography></Box>)}
+                  {rounds.map((round, index) => (
+                    Object.entries(round).map(([player, scores]) => (
+                      <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
+                          <Box key={`${player}_round_${index}_scores`} display="flex">
+                          <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
+                            <Box display="flex" className={classes.playerRound} justifyContent="row-reverse">
+                              {scores.map((scoreBed, idx) =>
+                                <DartScore key={`${player}_round_${index}_score_${idx}`} dart={{ ring: 'fixme', score: getScoringNumberFromBed(scoreBed), bed: scoreBed}} />
+                              )}
+                            </Box>
+                          </Tooltip>
+                        </Box>
+                      </Slide>
+                    ))
+                  ))}
+                </Box>
+              </Box>
+            </Grid>
+            <Grid item xs={5}>
+              <Box display="flex" justifyContent="space-between" paddingX={2}>
                 <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
                 <form onSubmit={addScore}>
                   <Box display="flex" flexDirection="row" justifyContent="flex-end">
@@ -397,39 +422,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 </form>
               </Box>
             </Grid>
-            <Grid item xs={3}>
-            <Box display="flex" justifySelf="flex-end">
-              <Button variant="text" color="default" onClick={() => setShowRounds(true)}>
-                Rounds
-              </Button>
-            </Box>
-          </Grid>
           </Grid>
         </Box>
       </Box>
-      <Dialog open={!!editScore} onClose={resetEdit}>
-        <Box paddingY={2}>
-        <Box display="flex" width="100%" justifyContent="space-between" paddingX={2}>
-          <Typography variant="body1">Edit score</Typography>
-          <Tooltip title="Cancel">
-            <IconButton  onClick={resetEdit} size="small">
-              <Close />
-            </IconButton>
-          </Tooltip>
-        </Box>
-        <Box paddingX={2}>
-          <form onSubmit={onEditScore}>
-            <Box mb={1}>
-              <Typography variant="caption"><b>{playerUtils.displayName(editScore?.player ?? '')}</b> round <b>#{editScore?.round}</b></Typography>
-            </Box>
-            {/*<input value={tempDart1} onChange={(evt) => setTempDart1(evt.target.value)}/>*/}
-            {/*<input value={tempDart2} onChange={(evt) => setTempDart2(evt.target.value)}/>*/}
-            {/*<input value={tempDart3} onChange={(evt) => setTempDart3(evt.target.value)}/>*/}
-            <input type="submit" value="Override" />
-          </form>
-        </Box>
-        </Box>
-      </Dialog>
       <Drawer anchor="left"
               open={showFunStats}
               variant="persistent"
@@ -466,60 +461,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
               </div>
             )
           })}
-        </Box>
-      </Drawer>
-      <Drawer anchor="right"
-              open={showRounds}
-              variant="persistent"
-              onClose={() => setShowRounds(false)}
-              classes={{
-                paper: `${classes.drawer} ${classes.drawerRight}`,
-              }}
-      >
-        <Box display="flex" justifyContent="space-between" alignItems="center" className={classes.title}>
-          <Box>
-            <Typography component="h3" variant="h5">
-              Rounds
-            </Typography>
-          </Box>
-          <Box>
-            <Tooltip title="Close drawer">
-              <IconButton onClick={() => setShowRounds(false)} size="small">
-                <Close />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-        <Box height="100%" padding={4} style={{ overflowY: 'scroll'}}>
-          {!rounds.length && (<Typography variant="subtitle1">No rounds played</Typography>)}
-          {rounds.map((round, index) => (
-            <div>
-              <div><b>Round #{index + 1}</b></div>
-              <div>
-                {Object.entries(round).map(([player, scores], index) => (
-                  <p>
-                    {/*<Tooltip title="Konou button">*/}
-                    {/*  <IconButton onClick={() => {*/}
-                    {/*    setTempDart1(scores[0] ?? '');*/}
-                    {/*    setTempDart2(scores[1] ?? '');*/}
-                    {/*    setTempDart3(scores[2] ?? '');*/}
-                    {/*    setEditScore({*/}
-                    {/*      player,*/}
-                    {/*      round: index+1*/}
-                    {/*    });*/}
-                    {/*  }} size="small"><Edit fontSize="small"/></IconButton>*/}
-                    {/*</Tooltip>*/}
-                    <b>{playerUtils.displayName(player)}</b>&#9;--&#9;{scores.map((scoreBed, index) =>
-                      <span>
-                  {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : isMissScore(scoreBed) ? 'M' : ''}{getScoringNumberFromBed(scoreBed)}
-                        {index === scores?.length - 1 ? '' : ', '}
-                </span>
-                  )}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ))}
         </Box>
       </Drawer>
     </>
