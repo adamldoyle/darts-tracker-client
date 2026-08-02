@@ -1,4 +1,5 @@
 import { IMonitoredState } from '@adamldoyle/reduxjs-toolkit-monitored-slice';
+import { DartboardClickDetails } from '../../scoreboard/components';
 
 export interface IPlayerGameStats {
   email: string;
@@ -59,6 +60,9 @@ export interface IPlayerCricketStats {
   scoringTotal: number;
 }
 
+export type DartThrow = DartboardClickDetails | null;
+export type DartRound = Record<string, [DartThrow, DartThrow ,DartThrow]>;
+
 export interface ICricketGameData {
   config: {
     datePlayed: number;
@@ -68,7 +72,7 @@ export interface ICricketGameData {
      */
     scoringNumbers?: number[];
   };
-  rounds: Record<string, [string, string, string]>[];
+  rounds: DartRound[];
   playerStats: Record<string, IPlayerCricketStats>;
 }
 

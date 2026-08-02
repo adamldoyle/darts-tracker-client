@@ -1,6 +1,6 @@
 import { FC, FormEvent, useState } from 'react';
 import { Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
-import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
+import { DartRound, DartThrow, ICricketGameData, IPlayerCricketStats } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
 import {
   DartboardClickDetails,
@@ -82,19 +82,19 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Record<string, [string, string, string]>[], ) => {
+const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: DartRound[], ) => {
   const playerScores = rounds.map((round) => {
     return round[player];
   }).flat();
-  const matchingScores = playerScores?.filter((score) => getScoringNumberFromBed(score) === scoringNumber) ?? [];
+  const matchingScores = playerScores?.filter((dart) => dart?.bed && getScoringNumberFromBed(dart.bed) === scoringNumber) ?? [];
   let numberOfHits = 0;
-  matchingScores.forEach((score) => {
-    if (!score) return;
-     if (isDoubleScore(score)) {
+  matchingScores.forEach((dart) => {
+    if (!dart) return;
+     if (isDoubleScore(dart?.bed)) {
       numberOfHits = numberOfHits + 2;
-    } else if (isTripleScore(score)) {
+    } else if (isTripleScore(dart?.bed)) {
       numberOfHits = numberOfHits + 3;
-    } else if (isMissScore(score)) {
+    } else if (isMissScore(dart?.bed)) {
        //no change
      } else {
        numberOfHits++;
@@ -103,12 +103,12 @@ const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Re
   return numberOfHits;
 }
 
-const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [string, string, string], player: string, scoringNumbers: number[] = []) => {
+const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = []) => {
   roundScore.forEach((dartThrown) => {
-    const hitNumber = getScoringNumberFromBed(dartThrown);
+    const hitNumber = getScoringNumberFromBed(dartThrown?.bed);
     if (isNaN(hitNumber)) return;
     const currentPlayerScoringStatus = playerStats[player]?.scoringNumberStatus ?? {};
-    const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : isMissScore(dartThrown) ? 0 : 1;
+    const hitCountWithDart = isDoubleScore(dartThrown?.bed) ? 2 : isTripleScore(dartThrown?.bed) ? 3 : isMissScore(dartThrown?.bed) ? 0 : 1;
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber) && hitCountWithDart > 0) {
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
       const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[pk].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && pk !== player)
@@ -135,7 +135,7 @@ const buildCricketGameData = (config: {
   datePlayed: number;
   players: string[];
   scoringNumbers?: number[];
-}, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
+}, rounds: DartRound[]): ICricketGameData => {
   const playerStats = rounds.reduce<Record<string, IPlayerCricketStats>>(
     (acc, round) => {
       Object.entries(round).forEach(([player, roundScore]) => {
@@ -189,9 +189,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   });
 
   const [editCurrentDart, setEditCurrentDart] = useState<1 | 2 | 3 | null>(null);
-  const [dart1, setDart1] = useState<DartboardClickDetails | null>(null);
-  const [dart2, setDart2] = useState<DartboardClickDetails | null>(null);
-  const [dart3, setDart3] = useState<DartboardClickDetails | null>(null);
+  const [dart1, setDart1] = useState<DartThrow>(null);
+  const [dart2, setDart2] = useState<DartThrow>(null);
+  const [dart3, setDart3] = useState<DartThrow>(null);
   const [editScore, setEditScore] = useState<{player: string, round: number, dart: number} | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFunStats, setShowFunStats] = useState(false);
@@ -218,14 +218,14 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     );
   }
 
-  const saveScore = async (_newScore: string[]) => {
+  const saveScore = async (_newScore: DartThrow[]) => {
     if (saving) {
       return;
     }
     setSaving(true);
     if (!gameData?.config) return;
     const newRounds = [...rounds];
-    newRounds[currentRound][currentPlayer] = [_newScore?.[0] ?? 0, _newScore?.[1] ?? 0, _newScore?.[2] ?? 0];
+    newRounds[currentRound][currentPlayer] = [_newScore?.[0], _newScore?.[1], _newScore?.[2]];
     const newGameData = buildCricketGameData(gameData?.config, newRounds);
     setGameData(newGameData);
     setDart1(null)
@@ -234,7 +234,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     setSaving(false);
   };
 
-  const saveEditScore = async (_newScore: string) => {
+  const saveEditScore = async (_newScore: DartThrow) => {
     if (saving) {
       return;
     }
@@ -254,12 +254,12 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
 
   const addScore = (evt?: FormEvent) => {
     evt?.preventDefault();
-    saveScore([dart1?.bed ?? '', dart2?.bed ?? '', dart3?.bed ?? '']);
+    saveScore([dart1, dart2, dart3]);
   };
 
   const handleDartboardClick = (details: DartboardClickDetails) => {
     if (!!editScore) {
-      saveEditScore(details.bed);
+      saveEditScore(details);
     } else if (!dart1 || editCurrentDart === 1) {
       setDart1(details);
     } else if (!dart2 || editCurrentDart === 2) {
@@ -421,11 +421,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                         <Box key={`${player}_round_${index}_scores`} display="flex">
                           <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
                             <Box display="flex" className={classes.playerRound} justifyContent="row-reverse">
-                              {scores.map((scoreBed, idx) =>
+                              {scores.map((dart, idx) =>
                                 <DartScore
                                   key={`${player}_round_${index}_score_${idx}`}
                                   position={idx=== 0 ? 'left' : idx === (scores.length - 1) ? 'right': 'default'}
-                                  dart={{ ring: 'fixme', score: getScoringNumberFromBed(scoreBed), bed: scoreBed}}
+                                  dart={dart}
                                   onClick={() => {
                                     setEditCurrentDart(null);
                                     setEditScore(getIsSelected(player, index, idx) ? null : {player, round: index, dart: idx});
