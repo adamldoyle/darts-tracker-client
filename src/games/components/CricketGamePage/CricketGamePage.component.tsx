@@ -342,7 +342,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   return (
     <>
       <Box height="97vh" width="100%" display="flex" flexDirection="column">
-        <Box width="100%">
+        <Box width="100%" height="100%">
           <Grid container spacing={1} justify="space-around">
             <Grid item>
               <div style={{ flex: '1 0 auto', justifyItems: 'center', marginTop: 20 }}>
@@ -361,7 +361,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                       <td>Score</td>
                       {gameData?.config.players.map((player) => (
                         <td key={player}>
-                          <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
+                          <b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b>
                         </td>
                       ))}
                     </tr>
