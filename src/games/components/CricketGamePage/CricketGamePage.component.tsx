@@ -52,7 +52,29 @@ const useStyles = makeStyles((theme) => ({
   },
   playerRound: {
     marginLeft: theme.spacing(1),
-  }
+  },
+  ticker: {
+    position: 'sticky',
+    bottom: 0,
+    width: "100%",
+    color: theme.palette.primary.contrastText,
+    background: `linear-gradient(0deg, #171717, 80%, ${theme.palette.secondary.main})`,
+    borderTopLeftRadius: theme.shape.borderRadius,
+    borderTopRightRadius: theme.shape.borderRadius,
+    border: `2px inset ${theme.palette.grey[500]}`,
+  },
+  tickerScores: {
+    paddingLeft: '32px',
+    overflowX: 'scroll',
+    scrollbarWidth: 'none',
+    backgroundColor: '#171717',
+    borderRadius: theme.shape.borderRadius,
+    border: `2px inset ${theme.palette.grey[500]}`,
+  },
+  tickerRoundNumber: {
+    padding: theme.spacing(0.5),
+    backgroundColor: theme.palette.secondary.main,
+  },
 }));
 
 const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Record<string, [string, string, string]>[], ) => {
@@ -323,7 +345,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   return (
     <>
       <Box height="97vh" width="100%" display="flex" flexDirection="column">
-        <Box height="90%" width="100%">
+        <Box width="100%">
           <Grid container spacing={1} justify="space-around">
             <Grid item>
               <div style={{ flex: '1 0 auto', justifyItems: 'center', marginTop: 20 }}>
@@ -371,7 +393,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             <Grid item>
               {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
                 <div>
-                  <DartboardWrapper mode="window" size={80} onClick={handleDartboardClick} />
+                  <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
                 </div>
               </div>) : (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
                 <h2>Game over!</h2>
@@ -380,31 +402,34 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
           </Grid>
           </Grid>
         </Box>
-        <Box height="10%" width="100%">
+        <Box className={classes.ticker}>
           <Grid container>
             <Grid item xs={1}>
-              <Button variant="text" color="default" onClick={() => setShowFunStats(true)}>
+              <Button variant="text" color="secondary" onClick={() => setShowFunStats(true)}>
                 Stats
               </Button>
             </Grid>
             <Grid item xs={6}>
-              <Box display="flex" width="100%" style={{ paddingLeft: '32px', overflowX: 'scroll', scrollbarWidth: 'none'}}>
+              <Box display="flex" width="100%" className={classes.tickerScores}>
                 <Box display="flex" flexDirection="row-reverse">
                   {!rounds.length && (<Box><Typography variant="subtitle1">No rounds played</Typography></Box>)}
                   {rounds.map((round, index) => (
-                    Object.entries(round).map(([player, scores]) => (
+                    <>
+                    <Box className={classes.tickerRoundNumber}>{index+1}</Box>
+                    {Object.entries(round).map(([player, scores]) => (
                       <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
                           <Box key={`${player}_round_${index}_scores`} display="flex">
                           <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
                             <Box display="flex" className={classes.playerRound} justifyContent="row-reverse">
                               {scores.map((scoreBed, idx) =>
-                                <DartScore key={`${player}_round_${index}_score_${idx}`} dart={{ ring: 'fixme', score: getScoringNumberFromBed(scoreBed), bed: scoreBed}} />
+                                <DartScore position={idx=== 0 ? 'left' : idx === (scores.length - 1) ? 'right': 'default'} key={`${player}_round_${index}_score_${idx}`} dart={{ ring: 'fixme', score: getScoringNumberFromBed(scoreBed), bed: scoreBed}} />
                               )}
                             </Box>
                           </Tooltip>
                         </Box>
                       </Slide>
-                    ))
+                    ))}
+                    </>
                   ))}
                 </Box>
               </Box>
@@ -414,10 +439,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
                 <form onSubmit={addScore}>
                   <Box display="flex" flexDirection="row" justifyContent="flex-end">
-                    <DartScore dart={dart3} />
+                    <DartScore position="left" dart={dart3} />
                     <DartScore dart={dart2} />
-                    <DartScore dart={dart1} />
-                    <input type="submit" value="Save score" />
+                    <DartScore position="right" dart={dart1} />
+                    <Button type="submit" color="secondary">Save score</Button>
                   </Box>
                 </form>
               </Box>

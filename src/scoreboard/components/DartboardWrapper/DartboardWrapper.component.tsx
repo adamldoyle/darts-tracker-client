@@ -30,21 +30,19 @@ export interface DartboardClickDetails {
 export interface DartboardWrapperProps {
   size: number;
   onClick: (details: DartboardClickDetails) => void;
-  mode?: 'pixels' | 'window';
 }
 
-export const DartboardWrapper: FC<DartboardWrapperProps> = ({ size, onClick, mode = 'pixels' }) => {
-  const inputSize = mode === 'window' ? (window.innerHeight * (size /100)) : size
+export const DartboardWrapper: FC<DartboardWrapperProps> = ({ size, onClick }) => {
   const renderedSize = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (inputSize === renderedSize.current || !(window as any).Dartboard) {
+    if (size === renderedSize.current || !(window as any).Dartboard) {
       return;
     }
-    renderedSize.current = inputSize;
+    renderedSize.current = size;
     const dartboard = new (window as any).Dartboard('#dartboard');
     dartboard.render();
-  }, [inputSize]);
+  }, [size]);
 
   useEffect(() => {
     const callback = (d: any) => {
@@ -55,7 +53,7 @@ export const DartboardWrapper: FC<DartboardWrapperProps> = ({ size, onClick, mod
     return () => {
       document.querySelector('#dartboard')?.removeEventListener('throw', callback);
     };
-  }, [onClick, inputSize]);
+  }, [onClick, size]);
 
-  return <div key={inputSize} id="dartboard" style={{ width: inputSize, height: inputSize }}></div>;
+  return <div key={size} id="dartboard" style={{ width: size, height: size }}></div>;
 };
