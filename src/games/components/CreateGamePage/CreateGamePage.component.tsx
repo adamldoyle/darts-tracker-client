@@ -52,6 +52,7 @@ export const CreateGamePage: FC<CreateGamePageProps> = () => {
             config: {
               datePlayed: new Date().getTime(),
               players: values.randomize ? shuffle([...values.players]) : values.players,
+              scoringNumbers: values.scoringNumbers,
             },
             rounds: [{}],
             playerStats: {},

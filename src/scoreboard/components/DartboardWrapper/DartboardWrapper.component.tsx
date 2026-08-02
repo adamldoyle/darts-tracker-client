@@ -3,6 +3,11 @@ import { useEffect, useRef, FC } from 'react';
 export const getScoringNumberFromBed = (bed: string) => {
   return !bed ? 0 : (bed?.endsWith(`25`) || bed?.endsWith(`50`)) ? 25 : parseInt(bed.replace(/[A-Z]+/g, ''));
 }
+export const isMissScore = (bed: string) => {
+  return [
+    'M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12','M13','M14','M15','M16','M17','M18','M19','M20',
+  ].includes(bed);
+}
 
 export const isDoubleScore = (bed: string) => {
   return [
@@ -25,19 +30,21 @@ export interface DartboardClickDetails {
 export interface DartboardWrapperProps {
   size: number;
   onClick: (details: DartboardClickDetails) => void;
+  mode?: 'pixels' | 'window';
 }
 
-export const DartboardWrapper: FC<DartboardWrapperProps> = ({ size, onClick }) => {
+export const DartboardWrapper: FC<DartboardWrapperProps> = ({ size, onClick, mode = 'pixels' }) => {
+  const inputSize = mode === 'window' ? (window.innerHeight * (size /100)) : size
   const renderedSize = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (size === renderedSize.current || !(window as any).Dartboard) {
+    if (inputSize === renderedSize.current || !(window as any).Dartboard) {
       return;
     }
-    renderedSize.current = size;
+    renderedSize.current = inputSize;
     const dartboard = new (window as any).Dartboard('#dartboard');
     dartboard.render();
-  }, [size]);
+  }, [inputSize]);
 
   useEffect(() => {
     const callback = (d: any) => {
@@ -48,7 +55,7 @@ export const DartboardWrapper: FC<DartboardWrapperProps> = ({ size, onClick }) =
     return () => {
       document.querySelector('#dartboard')?.removeEventListener('throw', callback);
     };
-  }, [onClick, size]);
+  }, [onClick, inputSize]);
 
-  return <div key={size} id="dartboard" style={{ width: size, height: size }}></div>;
+  return <div key={inputSize} id="dartboard" style={{ width: inputSize, height: inputSize }}></div>;
 };
