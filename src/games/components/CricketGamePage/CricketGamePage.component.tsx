@@ -54,7 +54,7 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: theme.spacing(1),
   },
   editingModeDartBoard: {
-    background: `linear-gradient(0deg, ${theme.palette.secondary.main}, 10%, ${theme.palette.background.default})`,
+    background: `radial-gradient(circle at center, ${theme.palette.secondary.main} 0, ${theme.palette.grey[200]} 100%)`,
   },
   ticker: {
     position: 'sticky',
@@ -343,9 +343,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     <>
       <Box height="97vh" width="100%" display="flex" flexDirection="column">
         <Box width="100%" height="100%">
-          <Grid container spacing={1} justify="space-around">
+          <Grid container justify="space-around">
             <Grid item>
-              <div style={{ flex: '1 0 auto', justifyItems: 'center', marginTop: 20 }}>
+              <Box alignSelf="center">
                 <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
                   <thead>
                   <tr>
@@ -386,17 +386,19 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Box>
             </Grid>
             <Grid item>
-              {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center'}}>
-                <Box padding={1} className={!!editScore ? classes.editingModeDartBoard : ''}>
+              {!gameOver ? (
+                <Box padding={2} className={!!editScore ? classes.editingModeDartBoard : ''} style={{ borderRadius: (window.innerHeight * (80/100))}}>
                   <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
                 </Box>
-              </div>) : (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-                <h2>Game over!</h2>
-                <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
-              </div>)}
+                ) : (
+                <Box>
+                  <h2>Game over!</h2>
+                  <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
+                </Box>
+              )}
           </Grid>
           </Grid>
         </Box>
