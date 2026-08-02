@@ -1,7 +1,7 @@
 import { FC, FormEvent, useState } from 'react';
 import { Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
-import { RadioButtonChecked, RadioButtonUnchecked, Close, Edit } from '@material-ui/icons';
+import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
 import {
   DartboardClickDetails,
   DartboardWrapper,
@@ -53,6 +53,9 @@ const useStyles = makeStyles((theme) => ({
   playerRound: {
     marginLeft: theme.spacing(1),
   },
+  editingModeDartBoard: {
+    background: `linear-gradient(0deg, ${theme.palette.secondary.main}, 10%, ${theme.palette.background.default})`,
+  },
   ticker: {
     position: 'sticky',
     bottom: 0,
@@ -64,6 +67,8 @@ const useStyles = makeStyles((theme) => ({
     border: `2px inset ${theme.palette.grey[500]}`,
   },
   tickerScores: {
+    paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(0.5),
     paddingLeft: '32px',
     overflowX: 'scroll',
     scrollbarWidth: 'none',
@@ -182,16 +187,14 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     rounds: [{}],
     playerStats: {}
   });
+
+  const [editCurrentDart, setEditCurrentDart] = useState<1 | 2 | 3 | null>(null);
   const [dart1, setDart1] = useState<DartboardClickDetails | null>(null);
   const [dart2, setDart2] = useState<DartboardClickDetails | null>(null);
   const [dart3, setDart3] = useState<DartboardClickDetails | null>(null);
-  const [editScore, setEditScore] = useState<{player: string, round: number} | null>(null);
-  const [tempDart1, setTempDart1] = useState<DartboardClickDetails | null>(null);
-  const [tempDart2, setTempDart2] = useState<DartboardClickDetails | null>(null);
-  const [tempDart3, setTempDart3] = useState<DartboardClickDetails | null>(null);
+  const [editScore, setEditScore] = useState<{player: string, round: number, dart: number} | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFunStats, setShowFunStats] = useState(false);
-  const [showRounds, setShowRounds] = useState(false);
 
   const playerStats = gameData?.playerStats ?? {};
   const rounds = gameData?.rounds ?? [{}];
@@ -231,14 +234,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     setSaving(false);
   };
 
-  const resetEdit = () => {
-    setTempDart1(null)
-    setTempDart2(null);
-    setTempDart3(null);
-    setEditScore(null);
-  }
-
-  const saveEditScore = async (_newScore: string[]) => {
+  const saveEditScore = async (_newScore: string) => {
     if (saving) {
       return;
     }
@@ -246,13 +242,13 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     if (!gameData?.config || !editScore) return;
     setGameData((_prev) => {
       const newRounds = [..._prev.rounds];
-      newRounds[editScore.round][editScore.player] = [_newScore?.[0] ?? 0, _newScore?.[1] ?? 0, _newScore?.[2] ?? 0];
+      newRounds[editScore.round][editScore.player][editScore.dart] = _newScore;
       return {
         ..._prev,
         rounds: newRounds,
       }
     });
-    resetEdit();
+    setEditScore(null);
     setSaving(false);
   };
 
@@ -261,19 +257,17 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     saveScore([dart1?.bed ?? '', dart2?.bed ?? '', dart3?.bed ?? '']);
   };
 
-  const onEditScore = (evt?: FormEvent) => {
-    evt?.preventDefault();
-    saveEditScore([tempDart1?.bed ?? '', tempDart2?.bed ?? '', tempDart3?.bed ?? '']);
-  };
-
   const handleDartboardClick = (details: DartboardClickDetails) => {
-    if (!dart1) {
+    if (!!editScore) {
+      saveEditScore(details.bed);
+    } else if (!dart1 || editCurrentDart === 1) {
       setDart1(details);
-    } else if (!dart2) {
+    } else if (!dart2 || editCurrentDart === 2) {
       setDart2(details);
-    } else if (!dart3) {
+    } else if (!dart3 || editCurrentDart === 3) {
       setDart3(details);
     }
+    setEditCurrentDart(null);
   };
 
   const playerHasMostHits = (player: string) => {
@@ -339,6 +333,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   };
 
   const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(player));
+  const getIsSelected = (player: string, round: number, dart: number) => {
+    return editScore?.player === player && editScore?.round === round && editScore?.dart === dart;
+  }
 
   // FIXME: add 'opt out' behavior to skip players when they have soft-won
 
@@ -358,43 +355,44 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                     ))}
                   </tr>
                   </thead>
-                  <tr>
-                    <td>Score</td>
-                    {gameData?.config.players.map((player) => (
-                      <td key={player}>
-                        <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
-                      </td>
-                    ))}
-                  </tr>
-                  {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
+
+                  <tbody>
                     <tr>
-                      <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {scoringNumber === 25 ? 'Bull' : scoringNumber}
-                        </div>
-                      </td>
+                      <td>Score</td>
                       {gameData?.config.players.map((player) => (
-                        <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
-                          {renderPlayerScore(player, scoringNumber ?? 0)}
+                        <td key={player}>
+                          <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
                         </td>
                       ))}
                     </tr>
-                  ))}
-                  <tbody>
+                    {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
+                      <tr>
+                        <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}
+                          >
+                            {scoringNumber === 25 ? 'Bull' : scoringNumber}
+                          </div>
+                        </td>
+                        {gameData?.config.players.map((player) => (
+                          <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
+                            {renderPlayerScore(player, scoringNumber ?? 0)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </Grid>
             <Grid item>
-              {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-                <div>
+              {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center'}}>
+                <Box padding={1} className={!!editScore ? classes.editingModeDartBoard : ''}>
                   <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
-                </div>
+                </Box>
               </div>) : (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
                 <h2>Game over!</h2>
                 <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
@@ -412,17 +410,26 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             <Grid item xs={6}>
               <Box display="flex" width="100%" className={classes.tickerScores}>
                 <Box display="flex" flexDirection="row-reverse">
-                  {!rounds.length && (<Box><Typography variant="subtitle1">No rounds played</Typography></Box>)}
+                  <Box padding={0.5}><Typography>Cut-Throat Cricket</Typography></Box>
                   {rounds.map((round, index) => (
                     <>
                     <Box className={classes.tickerRoundNumber}>{index+1}</Box>
                     {Object.entries(round).map(([player, scores]) => (
                       <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
-                          <Box key={`${player}_round_${index}_scores`} display="flex">
+                        <Box key={`${player}_round_${index}_scores`} display="flex">
                           <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
                             <Box display="flex" className={classes.playerRound} justifyContent="row-reverse">
                               {scores.map((scoreBed, idx) =>
-                                <DartScore position={idx=== 0 ? 'left' : idx === (scores.length - 1) ? 'right': 'default'} key={`${player}_round_${index}_score_${idx}`} dart={{ ring: 'fixme', score: getScoringNumberFromBed(scoreBed), bed: scoreBed}} />
+                                <DartScore
+                                  key={`${player}_round_${index}_score_${idx}`}
+                                  position={idx=== 0 ? 'left' : idx === (scores.length - 1) ? 'right': 'default'}
+                                  dart={{ ring: 'fixme', score: getScoringNumberFromBed(scoreBed), bed: scoreBed}}
+                                  onClick={() => {
+                                    setEditCurrentDart(null);
+                                    setEditScore(getIsSelected(player, index, idx) ? null : {player, round: index, dart: idx});
+                                  }}
+                                  selected={getIsSelected(player, index, idx)}
+                                />
                               )}
                             </Box>
                           </Tooltip>
@@ -435,14 +442,23 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
               </Box>
             </Grid>
             <Grid item xs={5}>
-              <Box display="flex" justifyContent="space-between" paddingX={2}>
+              <Box display="flex" justifyContent="space-between" paddingX={2} alignItems="center">
                 <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
                 <form onSubmit={addScore}>
                   <Box display="flex" flexDirection="row" justifyContent="flex-end">
-                    <DartScore position="left" dart={dart3} />
-                    <DartScore dart={dart2} />
-                    <DartScore position="right" dart={dart1} />
-                    <Button type="submit" color="secondary">Save score</Button>
+                    <DartScore disabled={!!editScore} onClick={() => {
+                      setEditScore(null);
+                      setEditCurrentDart(editCurrentDart === 3 ? null : 3);
+                    }} position="left" dart={dart3} selected={editCurrentDart === 3} />
+                    <DartScore disabled={!!editScore} onClick={() => {
+                      setEditScore(null);
+                      setEditCurrentDart(editCurrentDart === 2 ? null : 2)
+                    }} dart={dart2} selected={editCurrentDart === 2} />
+                    <DartScore disabled={!!editScore} onClick={() => {
+                      setEditScore(null);
+                      setEditCurrentDart(editCurrentDart === 1 ? null : 1)
+                    }} position="right" dart={dart1} selected={editCurrentDart === 1} />
+                    <Button disabled={!!editScore} type="submit" color="secondary">Save score</Button>
                   </Box>
                 </form>
               </Box>
