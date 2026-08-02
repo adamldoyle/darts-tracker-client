@@ -190,7 +190,7 @@ const CountUpScore = ({score}: {score: number}) => {
     }, 20)
   }, [score]);
 
-  return <>{localScore}</>
+  return <b style={localScore < score ? { color: 'red'} : {}}>{localScore}</b>
 }
 
 export const CricketGamePage: FC<CricketGamePageProps> = () => {
@@ -362,80 +362,79 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
 
   return (
     <>
-      <Box minHeight="97vh" width="100%" display="flex" flexDirection="column">
-        <Box width="100%" height="100%">
-          <Grid container justify="space-around">
-            <Grid item>
-              <Box height="100%" alignContent="center">
-                <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
-                  <thead>
+      <Box minHeight="100vh" width="100%" display="flex" flexDirection="column">
+        <Grid container justify="space-around">
+          <Grid item>
+            <Box height="100%" alignContent="center">
+              <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
+                <thead>
+                <tr>
+                  <td></td>
+                  {gameData?.config.players.map((player) => (
+                    <td>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
+                  ))}
+                </tr>
+                </thead>
+
+                <tbody>
+                <tr>
+                  <td>Score</td>
+                  {gameData?.config.players.map((player) => (
+                    <td key={player}>
+                      <b><CountUpScore score={gameData?.playerStats?.[player]?.scoringTotal ?? 0} /></b>
+                    </td>
+                  ))}
+                </tr>
+                {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
                   <tr>
-                    <td></td>
+                    <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {scoringNumber === 25 ? 'Bull' : scoringNumber}
+                      </div>
+                    </td>
                     {gameData?.config.players.map((player) => (
-                      <td>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
+                      <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
+                        {renderPlayerScore(player, scoringNumber ?? 0)}
+                      </td>
                     ))}
                   </tr>
-                  </thead>
-
-                  <tbody>
-                    <tr>
-                      <td>Score</td>
-                      {gameData?.config.players.map((player) => (
-                        <td key={player}>
-                          <b><CountUpScore score={gameData?.playerStats?.[player]?.scoringTotal ?? 0} /></b>
-                        </td>
-                      ))}
-                    </tr>
-                    {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
-                      <tr>
-                        <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                            }}
-                          >
-                            {scoringNumber === 25 ? 'Bull' : scoringNumber}
-                          </div>
-                        </td>
-                        {gameData?.config.players.map((player) => (
-                          <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
-                            {renderPlayerScore(player, scoringNumber ?? 0)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                ))}
+                </tbody>
+              </table>
+            </Box>
+          </Grid>
+          <Grid item>
+            {!gameOver ? (
+              <Box padding={2} className={!!editScore ? classes.editingModeDartBoard : ''} style={{ borderRadius: (window.innerHeight * (80/100))}}>
+                <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
               </Box>
-            </Grid>
-            <Grid item>
-              {!gameOver ? (
-                <Box padding={2} className={!!editScore ? classes.editingModeDartBoard : ''} style={{ borderRadius: (window.innerHeight * (80/100))}}>
-                  <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
-                </Box>
-                ) : (
-                <Box>
-                  <h2>Game over!</h2>
-                  <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
-                </Box>
-              )}
+            ) : (
+              <Box>
+                <h2>Game over!</h2>
+                <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
+              </Box>
+            )}
           </Grid>
+        </Grid>
+      </Box>
+      <Box className={classes.ticker}>
+        <Grid container>
+          <Grid item xs={1}>
+            <Button variant="text" color="secondary" onClick={() => setShowFunStats(true)}>
+              Stats
+            </Button>
           </Grid>
-        </Box>
-        <Box className={classes.ticker}>
-          <Grid container>
-            <Grid item xs={1}>
-              <Button variant="text" color="secondary" onClick={() => setShowFunStats(true)}>
-                Stats
-              </Button>
-            </Grid>
-            <Grid item xs={6}>
-              <Box display="flex" width="100%" className={classes.tickerScores}>
-                <Box display="flex" flexDirection="row-reverse">
-                  <Box padding={0.5}><Typography>Cut-Throat Cricket</Typography></Box>
-                  {rounds.map((round, index) => (
-                    <>
+          <Grid item xs={6}>
+            <Box display="flex" width="100%" className={classes.tickerScores}>
+              <Box display="flex" flexDirection="row-reverse">
+                <Box padding={0.5}><Typography>Cut-Throat Cricket</Typography></Box>
+                {rounds.map((round, index) => (
+                  <>
                     <Box className={classes.tickerRoundNumber}>{index+1}</Box>
                     {Object.entries(round).map(([player, scores]) => (
                       <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
@@ -459,35 +458,34 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                         </Box>
                       </Slide>
                     ))}
-                    </>
-                  ))}
-                </Box>
+                  </>
+                ))}
               </Box>
-            </Grid>
-            <Grid item xs={5}>
-              <Box display="flex" justifyContent="space-between" paddingX={2} alignItems="center">
-                <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
-                <form onSubmit={addScore}>
-                  <Box display="flex" flexDirection="row" justifyContent="flex-end">
-                    <DartScore disabled={!!editScore} onClick={() => {
-                      setEditScore(null);
-                      setEditCurrentDart(editCurrentDart === 3 ? null : 3);
-                    }} position="left" dart={dart3} selected={editCurrentDart === 3} />
-                    <DartScore disabled={!!editScore} onClick={() => {
-                      setEditScore(null);
-                      setEditCurrentDart(editCurrentDart === 2 ? null : 2)
-                    }} dart={dart2} selected={editCurrentDart === 2} />
-                    <DartScore disabled={!!editScore} onClick={() => {
-                      setEditScore(null);
-                      setEditCurrentDart(editCurrentDart === 1 ? null : 1)
-                    }} position="right" dart={dart1} selected={editCurrentDart === 1} />
-                    <Button disabled={!!editScore} type="submit" color="secondary">Save score</Button>
-                  </Box>
-                </form>
-              </Box>
-            </Grid>
+            </Box>
           </Grid>
-        </Box>
+          <Grid item xs={5}>
+            <Box display="flex" justifyContent="space-between" paddingX={2} alignItems="center">
+              <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
+              <form onSubmit={addScore}>
+                <Box display="flex" flexDirection="row" justifyContent="flex-end">
+                  <DartScore disabled={!!editScore} onClick={() => {
+                    setEditScore(null);
+                    setEditCurrentDart(editCurrentDart === 3 ? null : 3);
+                  }} position="left" dart={dart3} selected={editCurrentDart === 3} />
+                  <DartScore disabled={!!editScore} onClick={() => {
+                    setEditScore(null);
+                    setEditCurrentDart(editCurrentDart === 2 ? null : 2)
+                  }} dart={dart2} selected={editCurrentDart === 2} />
+                  <DartScore disabled={!!editScore} onClick={() => {
+                    setEditScore(null);
+                    setEditCurrentDart(editCurrentDart === 1 ? null : 1)
+                  }} position="right" dart={dart1} selected={editCurrentDart === 1} />
+                  <Button disabled={!!editScore} type="submit" color="secondary">Save score</Button>
+                </Box>
+              </form>
+            </Box>
+          </Grid>
+        </Grid>
       </Box>
       <Drawer anchor="left"
               open={showFunStats}
