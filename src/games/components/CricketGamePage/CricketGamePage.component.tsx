@@ -341,11 +341,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
 
   return (
     <>
-      <Box height="97vh" width="100%" display="flex" flexDirection="column">
+      <Box minHeight="97vh" width="100%" display="flex" flexDirection="column">
         <Box width="100%" height="100%">
           <Grid container justify="space-around">
             <Grid item>
-              <Box alignSelf="center">
+              <Box height="100%" alignContent="center">
                 <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
                   <thead>
                   <tr>
