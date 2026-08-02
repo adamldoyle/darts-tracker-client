@@ -1,4 +1,4 @@
-import { FC, FormEvent, useState } from 'react';
+import { FC, FormEvent, useEffect, useState } from 'react';
 import { Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { DartRound, DartThrow, ICricketGameData, IPlayerCricketStats } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
@@ -75,6 +75,7 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: '#171717',
     borderRadius: theme.shape.borderRadius,
     border: `2px inset ${theme.palette.grey[500]}`,
+    whiteSpace: 'nowrap',
   },
   tickerRoundNumber: {
     padding: theme.spacing(0.5),
@@ -171,6 +172,26 @@ const getTotalHits = (scoringNumberStatus: Record<number, number>, scoringNums: 
 }
 
 export interface CricketGamePageProps {}
+
+const CountUpScore = ({score}: {score: number}) => {
+  const [localScore, setLocalScore] = useState(0);
+
+  useEffect(() => {
+    const count = score - localScore;
+    if (count === 0) return;
+    const iterations = Math.round(800 / 20);
+    let ticks = 0;
+    const iterate = setInterval(() => {
+      ticks++
+      setLocalScore(score + Math.floor(count*Math.log10(ticks/iterations)));
+      if (ticks === iterations) {
+        clearInterval(iterate);
+      }
+    }, 20)
+  }, [score]);
+
+  return <>{localScore}</>
+}
 
 export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const classes = useStyles();
@@ -329,7 +350,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     } else if (isLoser(player)) {
       return <>&#128169;</>;
     }
-    return null;
+    return <>{'  '}</>;
   };
 
   const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(player));
@@ -361,7 +382,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                       <td>Score</td>
                       {gameData?.config.players.map((player) => (
                         <td key={player}>
-                          <b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b>
+                          <b><CountUpScore score={gameData?.playerStats?.[player]?.scoringTotal ?? 0} /></b>
                         </td>
                       ))}
                     </tr>
