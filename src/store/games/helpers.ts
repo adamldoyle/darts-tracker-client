@@ -77,3 +77,5 @@ export const buildGameData = (config: IGameConfig, rounds: IRounds): IGameData =
   }
   return gameData;
 };
+
+// match on roundinfo

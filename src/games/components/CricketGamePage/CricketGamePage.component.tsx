@@ -7,7 +7,7 @@ import {
   DartboardWrapper,
   getScoringNumberFromBed,
   isDoubleScore, isMissScore,
-  isTripleScore, MISSED_DART,
+  isTripleScore, MISSED_DART, TickerGameEventsProps,
 } from '../../../scoreboard/components';
 import { useHistory } from 'react-router-dom';
 import { playerUtils } from 'shared/utils';
@@ -220,7 +220,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     },
     rounds: [{}],
     playerStats: {},
-    events: []
+    events: [{ eventName: 'New Game', eventDescription: 'Cricket game created.', roundInfo: { round: 0, player: '_game_', dart: null }}]
   });
 
   const [editCurrentDart, setEditCurrentDart] = useState<1 | 2 | 3 | null>(null);
@@ -484,6 +484,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                   </>
                 ))}
               </Box>
+              <TickerGameEventsProps events={gameData.events} />
             </Box>
           </Grid>
           <Grid item xs={5}>
