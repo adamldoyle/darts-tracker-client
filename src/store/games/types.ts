@@ -63,6 +63,18 @@ export interface IPlayerCricketStats {
 export type DartThrow = DartboardClickDetails | null;
 export type DartRound = Record<string, [DartThrow, DartThrow ,DartThrow]>;
 
+export interface RoundInfo {
+  player: string;
+  round: number;
+  dart: number | null;
+}
+
+export interface GameEvent {
+  roundInfo: RoundInfo;
+  eventName: string;
+  eventDescription: string;
+}
+
 export interface ICricketGameData {
   config: {
     datePlayed: number;
@@ -74,6 +86,7 @@ export interface ICricketGameData {
   };
   rounds: DartRound[];
   playerStats: Record<string, IPlayerCricketStats>;
+  events: GameEvent[];
 }
 
 export const defaultCricketNumbers = [20, 19, 18, 17, 16, 15, 25];

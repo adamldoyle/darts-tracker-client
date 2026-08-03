@@ -3,9 +3,11 @@ import { useEffect, useRef, FC } from 'react';
 export const getScoringNumberFromBed = (bed: string | null | undefined) => {
   return !bed ? 0 : (bed?.endsWith(`25`) || bed?.endsWith(`50`)) ? 25 : parseInt(bed.replace(/[A-Z]+/g, ''));
 }
+
 export const isMissScore = (bed: string | null | undefined) => {
+  // Added 'MX' as a default flat missing value
   return [
-    'M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12','M13','M14','M15','M16','M17','M18','M19','M20',
+    'MX', 'M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12','M13','M14','M15','M16','M17','M18','M19','M20',
   ].includes(bed ?? '');
 }
 
@@ -25,6 +27,12 @@ export interface DartboardClickDetails {
   bed: string;
   ring: string;
   score: number;
+}
+
+export const MISSED_DART: DartboardClickDetails = {
+  bed: 'MX',
+  ring: 'border',
+  score: 0,
 }
 
 export interface DartboardWrapperProps {

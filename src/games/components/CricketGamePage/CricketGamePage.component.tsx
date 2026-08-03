@@ -1,13 +1,13 @@
 import { FC, FormEvent, useEffect, useState } from 'react';
-import { Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
-import { DartRound, DartThrow, ICricketGameData, IPlayerCricketStats } from 'store/games/types';
+import { Badge, Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
+import { DartRound, DartThrow, GameEvent, ICricketGameData, IPlayerCricketStats, RoundInfo } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
 import {
   DartboardClickDetails,
   DartboardWrapper,
   getScoringNumberFromBed,
   isDoubleScore, isMissScore,
-  isTripleScore,
+  isTripleScore, MISSED_DART,
 } from '../../../scoreboard/components';
 import { useHistory } from 'react-router-dom';
 import { playerUtils } from 'shared/utils';
@@ -81,6 +81,14 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(0.5),
     backgroundColor: theme.palette.secondary.main,
   },
+  missButton: {
+    padding: theme.spacing(4),
+    borderRadius: theme.spacing(20),
+    '&:hover': {
+      cursor: 'pointer',
+      background: `linear-gradient(0deg, #171717, 30%, ${theme.palette.background.paper})`,
+    },
+  }
 }));
 
 const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: DartRound[], ) => {
@@ -104,7 +112,7 @@ const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Da
   return numberOfHits;
 }
 
-const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = []) => {
+const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = [], addEvent: (event: GameEvent) => void) => {
   roundScore.forEach((dartThrown) => {
     const hitNumber = getScoringNumberFromBed(dartThrown?.bed);
     if (isNaN(hitNumber)) return;
@@ -137,11 +145,12 @@ const buildCricketGameData = (config: {
   players: string[];
   scoringNumbers?: number[];
 }, rounds: DartRound[]): ICricketGameData => {
+  const gameEvents: GameEvent[] = [];
   const playerStats = rounds.reduce<Record<string, IPlayerCricketStats>>(
     (acc, round) => {
       Object.entries(round).forEach(([player, roundScore]) => {
         const playerStats = acc[player];
-        iterateScoresForPlayerRoundScore(acc, roundScore, player, config.scoringNumbers);
+        iterateScoresForPlayerRoundScore(acc, roundScore, player, config.scoringNumbers, (event) => gameEvents.push(event));
         playerStats.roundsPlayed++;
       });
       return acc;
@@ -155,7 +164,7 @@ const buildCricketGameData = (config: {
       return acc;
     }, {})
   );
-  const _gameData: ICricketGameData = { config, rounds, playerStats };
+  const _gameData: ICricketGameData = { config, rounds, playerStats, events: gameEvents };
   if (
     !Object.values(_gameData.playerStats).find(
       (stats) => stats.roundsPlayed < (rounds.length ?? 0),
@@ -179,6 +188,10 @@ const CountUpScore = ({score}: {score: number}) => {
   useEffect(() => {
     const count = score - localScore;
     if (count === 0) return;
+    if (localScore > score) {
+      setLocalScore(score);
+      return;
+    }
     const iterations = Math.round(800 / 20);
     let ticks = 0;
     const iterate = setInterval(() => {
@@ -206,14 +219,15 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
       players: pageState.config?.players ?? ['Player 1', 'Player 2'],
     },
     rounds: [{}],
-    playerStats: {}
+    playerStats: {},
+    events: []
   });
 
   const [editCurrentDart, setEditCurrentDart] = useState<1 | 2 | 3 | null>(null);
   const [dart1, setDart1] = useState<DartThrow>(null);
   const [dart2, setDart2] = useState<DartThrow>(null);
   const [dart3, setDart3] = useState<DartThrow>(null);
-  const [editScore, setEditScore] = useState<{player: string, round: number, dart: number} | null>(null);
+  const [editScore, setEditScore] = useState<RoundInfo | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFunStats, setShowFunStats] = useState(false);
 
@@ -246,7 +260,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     setSaving(true);
     if (!gameData?.config) return;
     const newRounds = [...rounds];
-    newRounds[currentRound][currentPlayer] = [_newScore?.[0], _newScore?.[1], _newScore?.[2]];
+    newRounds[currentRound][currentPlayer] = [_newScore?.[0] ?? MISSED_DART, _newScore?.[1] ?? MISSED_DART, _newScore?.[2] ?? MISSED_DART];
     const newGameData = buildCricketGameData(gameData?.config, newRounds);
     setGameData(newGameData);
     setDart1(null)
@@ -260,10 +274,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
       return;
     }
     setSaving(true);
-    if (!gameData?.config || !editScore) return;
+    if (!gameData?.config || !editScore || editScore.dart === null) return;
     setGameData((_prev) => {
       const newRounds = [..._prev.rounds];
-      newRounds[editScore.round][editScore.player][editScore.dart] = _newScore;
+      newRounds[editScore.round][editScore.player][editScore.dart ?? 0] = _newScore;
       return {
         ..._prev,
         rounds: newRounds,
@@ -410,9 +424,18 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
           </Grid>
           <Grid item>
             {!gameOver ? (
-              <Box padding={2} className={!!editScore ? classes.editingModeDartBoard : ''} style={{ borderRadius: (window.innerHeight * (80/100))}}>
-                <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
-              </Box>
+              <Badge anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }} badgeContent={
+                <Box onClick={() => handleDartboardClick(MISSED_DART)} className={classes.missButton}>
+                  <Typography variant="h6">MISS</Typography>
+                </Box>
+              }>
+                <Box padding={2} className={!!editScore ? classes.editingModeDartBoard : ''} style={{ borderRadius: (window.innerHeight * (80/100))}}>
+                  <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
+                </Box>
+              </Badge>
             ) : (
               <Box>
                 <h2>Game over!</h2>
