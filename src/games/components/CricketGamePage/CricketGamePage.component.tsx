@@ -113,22 +113,34 @@ const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Da
 }
 
 const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = [], addEvent: (event: GameEvent) => void) => {
-  roundScore.forEach((dartThrown) => {
+  roundScore.forEach((dartThrown, index) => {
     const hitNumber = getScoringNumberFromBed(dartThrown?.bed);
     if (isNaN(hitNumber)) return;
+    // FIXME: calculate current round
+    const currentRound = playerStats[player]?.roundsPlayed ?? 1;
     const currentPlayerScoringStatus = playerStats[player]?.scoringNumberStatus ?? {};
     const hitCountWithDart = isDoubleScore(dartThrown?.bed) ? 2 : isTripleScore(dartThrown?.bed) ? 3 : isMissScore(dartThrown?.bed) ? 0 : 1;
     if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber) && hitCountWithDart > 0) {
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
       const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[pk].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && pk !== player)
       if (hitTotal > 3) {
+        let _scoreEventDescription = `${playerUtils.displayName(player)} scores on`
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
-            playerStats[pk].scoringTotal += (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber);
+            const partialMultipleScore = (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber)
+            playerStats[pk].scoringTotal += partialMultipleScore;
+            _scoreEventDescription += ` ${playerUtils.displayName(pk)} (+${partialMultipleScore})`;
           } else {
             playerStats[pk].scoringTotal += (hitCountWithDart * hitNumber);
           }
         })
+        if (playersKeysToIterate.length > 0) {
+          addEvent({
+            roundInfo: { player, round: currentRound, dart: index },
+            eventName: 'Score',
+            eventDescription: _scoreEventDescription
+          });
+        }
       }
     }
     // iterate on number of hits
@@ -136,6 +148,14 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCri
       currentPlayerScoringStatus[hitNumber] += hitCountWithDart;
     } else {
       currentPlayerScoringStatus[hitNumber] = hitCountWithDart;
+    }
+    if (scoringNumbers.includes(hitNumber)) {
+      // FIXME: we should condense these
+      addEvent({
+        roundInfo: { player, round: currentRound, dart: index },
+        eventName: 'Hit',
+        eventDescription: `${playerUtils.displayName(player)} hit scoring number [${hitNumber}] ${hitCountWithDart} time(s)`,
+      });
     }
   })
 }
