@@ -12,6 +12,7 @@ import {
 import { useHistory } from 'react-router-dom';
 import { playerUtils } from 'shared/utils';
 import { DartScore } from '../../../scoreboard/components/DartScore';
+import { getIsSameRound } from '../../../store/games/helpers';
 
 const useStyles = makeStyles((theme) => ({
   formField: {
@@ -57,6 +58,7 @@ const useStyles = makeStyles((theme) => ({
     background: `radial-gradient(circle at center, ${theme.palette.secondary.main} 0, ${theme.palette.grey[200]} 100%)`,
   },
   ticker: {
+    zIndex: 1,
     position: 'sticky',
     bottom: 0,
     width: "100%",
@@ -78,7 +80,7 @@ const useStyles = makeStyles((theme) => ({
     whiteSpace: 'nowrap',
   },
   tickerRoundNumber: {
-    padding: theme.spacing(0.5),
+    padding: theme.spacing(1),
     backgroundColor: theme.palette.secondary.main,
   },
   missButton: {
@@ -388,9 +390,6 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   };
 
   const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(player));
-  const getIsSelected = (player: string, round: number, dart: number) => {
-    return editScore?.player === player && editScore?.round === round && editScore?.dart === dart;
-  }
 
   // FIXME: add 'opt out' behavior to skip players when they have soft-won
 
@@ -468,14 +467,16 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
       <Box className={classes.ticker}>
         <Grid container>
           <Grid item xs={1}>
-            <Button variant="text" color="secondary" onClick={() => setShowFunStats(true)}>
-              Stats
-            </Button>
+            <Box display="flex" height="100%" alignItems="center">
+              <Button variant="text" color="secondary" onClick={() => setShowFunStats(true)}>
+                Stats
+              </Button>
+            </Box>
           </Grid>
           <Grid item xs={6}>
             <Box display="flex" width="100%" className={classes.tickerScores}>
               <Box display="flex" flexDirection="row-reverse">
-                <Box padding={0.5}><Typography>Cut-Throat Cricket</Typography></Box>
+                <Box padding={1}><Typography>Cut-Throat Cricket</Typography></Box>
                 {rounds.map((round, index) => (
                   <>
                     <Box className={classes.tickerRoundNumber}>{index+1}</Box>
@@ -491,9 +492,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                                   dart={dart}
                                   onClick={() => {
                                     setEditCurrentDart(null);
-                                    setEditScore(getIsSelected(player, index, idx) ? null : {player, round: index, dart: idx});
+                                    setEditScore(getIsSameRound(editScore, { player, round: index, dart: idx}) ? null : {player, round: index, dart: idx});
                                   }}
-                                  selected={getIsSelected(player, index, idx)}
+                                  selected={getIsSameRound(editScore, { player, round: index, dart: idx})}
+                                  roundInfo={{ player, round: index, dart: idx}}
+                                  gameEvents={gameData.events}
                                 />
                               )}
                             </Box>
@@ -508,7 +511,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
             </Box>
           </Grid>
           <Grid item xs={5}>
-            <Box display="flex" justifyContent="space-between" paddingX={2} alignItems="center">
+            <Box display="flex" height="100%" justifyContent="space-between" paddingX={2} alignItems="center">
               <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
               <form onSubmit={addScore}>
                 <Box display="flex" flexDirection="row" justifyContent="flex-end">

@@ -1,4 +1,4 @@
-import { IPlayerGameStats, IGameData, IAllPlayerGameStats, IGameConfig, IRounds } from './types';
+import { IPlayerGameStats, IGameData, IAllPlayerGameStats, IGameConfig, IRounds, RoundInfo } from './types';
 
 export const comparePlayerStats = (player1Stats: IPlayerGameStats, player2Stats: IPlayerGameStats): -1 | 0 | 1 => {
   if (player1Stats.forfeit) {
@@ -78,4 +78,9 @@ export const buildGameData = (config: IGameConfig, rounds: IRounds): IGameData =
   return gameData;
 };
 
-// match on roundinfo
+export const getIsSameRound = (aRound?: RoundInfo | null, bRound?: RoundInfo | null) => {
+  if (aRound && bRound) {
+    return aRound.round === bRound.round && aRound.player === bRound.player && aRound.dart === bRound.dart;
+  }
+  return false;
+}

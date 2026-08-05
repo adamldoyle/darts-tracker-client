@@ -1,10 +1,13 @@
 import { DartboardClickDetails } from '../DartboardWrapper';
-import {Collapse, Box, Typography, makeStyles} from '@material-ui/core';
+import { Collapse, Box, Typography, makeStyles } from '@material-ui/core';
+import { GameEvent, RoundInfo } from '../../../store/games/types';
+import { useMemo } from 'react';
+import { getIsSameRound } from '../../../store/games/helpers';
 
 const useStyles = makeStyles((theme) => ({
   scoreWrapper: {
     backgroundColor: '#171717',
-    padding: theme.spacing(0.25),
+    padding: theme.spacing(1),
     border: `1px inset ${theme.palette.background.paper}`,
     transition: 'all 0.2s ease-in-out',
     '&:hover': {
@@ -28,6 +31,12 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.grey[500],
     background: `linear-gradient(0deg, #171717, 30%, ${theme.palette.grey[500]})`,
   },
+  hit: {
+    backgroundColor: theme.palette.success.dark,
+  },
+  score: {
+    color: '#FFD85D',
+  }
 }));
 
 interface DartScoreProps {
@@ -37,15 +46,27 @@ interface DartScoreProps {
   selected?: boolean;
   position?: 'default' | 'left' | 'right';
   className?: string;
+  gameEvents?: GameEvent[];
+  roundInfo?: RoundInfo;
 }
 
-export const DartScore = ({ dart, onClick, disabled = false, selected = false, className = '', position = 'default' }: DartScoreProps) => {
+// FIXME: Add color border on top for designated player
+
+export const DartScore = ({ dart, onClick, roundInfo, gameEvents, disabled = false, selected = false, className = '', position = 'default' }: DartScoreProps) => {
   const classes = useStyles();
+  const myEvents = useMemo(() => {
+    return gameEvents?.filter((ge) => getIsSameRound(ge.roundInfo, roundInfo)) ?? [];
+  }, [gameEvents, roundInfo]);
+
+  const isScoring = myEvents?.some((ge) => ge.eventName === 'Score');
+  const isCricketHit = myEvents?.some((ge) => ge.eventName === 'Hit');
+
   return (
     <Collapse in={!!dart} timeout={500}>
       <Box onClick={onClick} className={`${classes.scoreWrapper} ${position === 'right' ? 
         classes.scoreOuterRight : position === 'left' ? classes.scoreOuterLeft : ''} ${
-        disabled ? classes.disabled : selected ? classes.selected : ''} ${className}`}>
+        disabled ? classes.disabled : selected ? classes.selected : ''} ${className} ${
+        isScoring ? classes.score : ''} ${isCricketHit ? classes.hit : ''}`}>
         <Typography>{dart?.bed}</Typography>
       </Box>
     </Collapse>
