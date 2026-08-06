@@ -1,5 +1,6 @@
-import { FC, FormEvent, useEffect, useState } from 'react';
+import { FC, FormEvent, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
+import { useSelector } from 'react-redux';
 import { DartRound, DartThrow, GameEvent, ICricketGameData, IPlayerCricketStats, RoundInfo } from 'store/games/types';
 import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
 import {
@@ -13,6 +14,8 @@ import { useHistory } from 'react-router-dom';
 import { playerUtils } from 'shared/utils';
 import { DartScore } from '../../../scoreboard/components/DartScore';
 import { getIsSameRound } from '../../../store/games/helpers';
+import { selectors as leagueSelectors } from 'store/leagues/slice';
+import { getPlayerColor } from '../../../shared/utils/player';
 
 const useStyles = makeStyles((theme) => ({
   formField: {
@@ -52,7 +55,13 @@ const useStyles = makeStyles((theme) => ({
     marginRight: theme.spacing(3),
   },
   playerRound: {
+    marginRight: theme.spacing(1),
     marginLeft: theme.spacing(1),
+    borderRightStyle: 'solid',
+    borderBottomStyle: 'solid',
+    borderRightWidth: theme.spacing(0.75),
+    borderBottomWidth: theme.spacing(0.75),
+    borderRadius: theme.shape.borderRadius,
   },
   editingModeDartBoard: {
     background: `radial-gradient(circle at center, ${theme.palette.secondary.main} 0, ${theme.palette.grey[200]} 100%)`,
@@ -252,6 +261,20 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const [editScore, setEditScore] = useState<RoundInfo | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFunStats, setShowFunStats] = useState(false);
+  const leaguePlayerMembers = useSelector(leagueSelectors.selectLeaguePlayerEmails);
+
+  const playerColorMap = useMemo(() => {
+    const newPlayers: string[] = [];
+    return gameData.config.players.reduce<Record<string, string>>((acc, playerKey) => {
+      let _leagueIndex = leaguePlayerMembers.indexOf(playerKey);
+      if (_leagueIndex === -1) {
+        _leagueIndex = leaguePlayerMembers.length+newPlayers.length;
+        newPlayers.push(playerKey);
+      }
+      acc[playerKey] = getPlayerColor(playerKey, _leagueIndex);
+      return acc;
+    }, {});
+  },[leaguePlayerMembers, gameData.playerStats]);
 
   const playerStats = gameData?.playerStats ?? {};
   const rounds = gameData?.rounds ?? [{}];
@@ -404,7 +427,11 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 <tr>
                   <td></td>
                   {gameData?.config.players.map((player) => (
-                    <td>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
+                    <td style={{
+                      borderTopStyle: 'solid',
+                      borderTopWidth: '4px',
+                      borderTopColor: playerColorMap[player] ?? '#808080',
+                    }}>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
                   ))}
                 </tr>
                 </thead>
@@ -484,7 +511,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                       <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
                         <Box key={`${player}_round_${index}_scores`} display="flex">
                           <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
-                            <Box display="flex" className={classes.playerRound} justifyContent="row-reverse">
+                            <Box display="flex" className={classes.playerRound} justifyContent="row-reverse" style={{
+                              backgroundColor: playerColorMap[player] ?? '#808080',
+                              borderColor: playerColorMap[player] ?? '#808080',
+                            }}>
                               {scores.map((dart, idx) =>
                                 <DartScore
                                   key={`${player}_round_${index}_score_${idx}`}

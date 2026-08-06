@@ -42,6 +42,7 @@ const { slice, selectors: baseSelectors, hooks, context } = createMonitoredSlice
 );
 
 export const selectSelectedLeague = createSelector(baseSelectors.selectSlice, (slice) => slice.selectedLeague);
+export const selectLeaguePlayerEmails = createSelector(baseSelectors.selectSlice, (slice) => slice.selectedLeague?.membership.map((mp) => mp.email) ?? [])
 export const selectEloKFactor = createSelector(
   baseSelectors.selectSlice,
   (slice) => slice.eloKFactor ?? DEFAULT_K_FACTOR,
@@ -49,5 +50,5 @@ export const selectEloKFactor = createSelector(
 
 const actions = slice.actions;
 const reducer = slice.reducer;
-const selectors = { ...baseSelectors, selectSelectedLeague, selectEloKFactor };
+const selectors = { ...baseSelectors, selectSelectedLeague, selectEloKFactor, selectLeaguePlayerEmails };
 export { selectors, actions, hooks, context, reducer };
