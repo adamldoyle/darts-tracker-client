@@ -1,4 +1,5 @@
 import { IMonitoredState } from '@adamldoyle/reduxjs-toolkit-monitored-slice';
+import { DartboardClickDetails } from '../../scoreboard/components';
 
 export interface IPlayerGameStats {
   email: string;
@@ -43,21 +44,49 @@ export type ILeagueGamesState = IMonitoredState<IGame[]>;
  * Cricket
  */
 
+export enum GameMode {
+  OHONE = 'OHONE',
+  CRICKET = 'CRICKET',
+}
+
+export const GameModeOptions = [
+  { value: GameMode.OHONE, label: 'Oh-One (Default)'},
+  { value: GameMode.CRICKET, label: 'CRICKET'},
+]
+
 export interface IPlayerCricketStats {
   roundsPlayed: number;
   scoringNumberStatus: Record<number, number>;
   scoringTotal: number;
 }
 
+export type DartThrow = DartboardClickDetails | null;
+export type DartRound = Record<string, [DartThrow, DartThrow ,DartThrow]>;
+
+export interface RoundInfo {
+  player: string;
+  round: number;
+  dart: number | null;
+}
+
+export interface GameEvent {
+  roundInfo: RoundInfo;
+  eventName: string;
+  eventDescription: string;
+}
+
 export interface ICricketGameData {
   config: {
     datePlayed: number;
-    playerCount: number;
+    players: string[];
     /**
      * Set of numbers to play
      */
     scoringNumbers?: number[];
   };
-  rounds: Record<number, [string, string, string]>[];
-  playerStats: Record<number, IPlayerCricketStats>;
+  rounds: DartRound[];
+  playerStats: Record<string, IPlayerCricketStats>;
+  events: GameEvent[];
 }
+
+export const defaultCricketNumbers = [20, 19, 18, 17, 16, 15, 25];

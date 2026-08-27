@@ -1,28 +1,23 @@
-import { FC, FormEvent, useState } from 'react';
-import { Button, Grid, makeStyles } from '@material-ui/core';
-import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
-import { handleRootErrors, RootError, InputField, SelectField } from 'form/components';
-import { useDelayedFormValidation } from 'form/hooks';
-import { ICricketGameData, IPlayerCricketStats } from 'store/games/types';
-import { RadioButtonChecked, RadioButtonUnchecked } from '@material-ui/icons';
+import { FC, FormEvent, useEffect, useMemo, useState } from 'react';
+import { Badge, Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
+import { useSelector } from 'react-redux';
+import { DartRound, DartThrow, GameEvent, ICricketGameData, IPlayerCricketStats, RoundInfo } from 'store/games/types';
+import { RadioButtonChecked, RadioButtonUnchecked, Close } from '@material-ui/icons';
 import {
   DartboardClickDetails,
   DartboardWrapper,
   getScoringNumberFromBed,
-  isDoubleScore,
-  isTripleScore,
+  isDoubleScore, isMissScore,
+  isTripleScore, MISSED_DART, TickerGameEventsProps,
 } from '../../../scoreboard/components';
+import { useHistory } from 'react-router-dom';
+import { playerUtils } from 'shared/utils';
+import { DartScore } from '../../../scoreboard/components/DartScore';
+import { getIsSameRound } from '../../../store/games/helpers';
+import { selectors as leagueSelectors } from 'store/leagues/slice';
+import { getPlayerColor } from '../../../shared/utils/player';
 
-const Schema = Yup.object({
-  scoringNumbers: Yup.array().of(Yup.number().default(0)).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
-  playerCount: Yup.number(),
-  randomize: Yup.boolean().default(false),
-}).required();
-type SchemaType = Yup.InferType<typeof Schema>;
-const emptyFormDefaults = Schema.getDefault();
-
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   formField: {
     maxWidth: 400,
   },
@@ -34,44 +29,129 @@ const useStyles = makeStyles(() => ({
       padding: '8px',
     }
   },
+  drawer: {
+    marginTop: 80,
+    border: `1px solid grey`,
+    height: 'calc(100% - 95px)',
+    width: 500,
+  },
+  largeDrawer: {
+    marginTop: 80,
+    border: `1px solid grey`,
+    height: 'calc(100% - 95px)',
+    width: 750,
+  },
+  drawerLeft: {
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  drawerRight: {
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  title: {
+    marginTop: theme.spacing(3),
+    marginLeft: theme.spacing(3),
+    marginRight: theme.spacing(3),
+  },
+  playerRound: {
+    marginRight: theme.spacing(1),
+    marginLeft: theme.spacing(1),
+    borderRightStyle: 'solid',
+    borderBottomStyle: 'solid',
+    borderRightWidth: theme.spacing(0.75),
+    borderBottomWidth: theme.spacing(0.75),
+    borderRadius: theme.shape.borderRadius,
+  },
+  editingModeDartBoard: {
+    background: `radial-gradient(circle at center, ${theme.palette.secondary.main} 0, ${theme.palette.grey[200]} 100%)`,
+  },
+  ticker: {
+    zIndex: 1,
+    position: 'sticky',
+    bottom: 0,
+    width: "100%",
+    color: theme.palette.primary.contrastText,
+    background: `linear-gradient(0deg, #171717, 80%, ${theme.palette.secondary.main})`,
+    borderTopLeftRadius: theme.shape.borderRadius,
+    borderTopRightRadius: theme.shape.borderRadius,
+    border: `2px inset ${theme.palette.grey[500]}`,
+  },
+  tickerScores: {
+    paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(0.5),
+    paddingLeft: '32px',
+    overflowX: 'scroll',
+    scrollbarWidth: 'none',
+    backgroundColor: '#171717',
+    borderRadius: theme.shape.borderRadius,
+    border: `2px inset ${theme.palette.grey[500]}`,
+    whiteSpace: 'nowrap',
+  },
+  tickerRoundNumber: {
+    padding: theme.spacing(1),
+    backgroundColor: theme.palette.secondary.main,
+  },
+  missButton: {
+    padding: theme.spacing(4),
+    borderRadius: theme.spacing(20),
+    '&:hover': {
+      cursor: 'pointer',
+      background: `linear-gradient(0deg, #171717, 30%, ${theme.palette.background.paper})`,
+    },
+  }
 }));
 
-const calculateNumberOfHits = (scoringNumber: number, playerIndex: number, rounds: Record<number, [string, string, string]>[], ) => {
+const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: DartRound[], ) => {
   const playerScores = rounds.map((round) => {
-    return round[playerIndex];
+    return round[player];
   }).flat();
-  const matchingScores = playerScores?.filter((score) => getScoringNumberFromBed(score) === scoringNumber) ?? [];
+  const matchingScores = playerScores?.filter((dart) => dart?.bed && getScoringNumberFromBed(dart.bed) === scoringNumber) ?? [];
   let numberOfHits = 0;
-  matchingScores.forEach((score) => {
-    if (!score) return;
-     if (isDoubleScore(score)) {
+  matchingScores.forEach((dart) => {
+    if (!dart) return;
+     if (isDoubleScore(dart?.bed)) {
       numberOfHits = numberOfHits + 2;
-    } else if (isTripleScore(score)) {
+    } else if (isTripleScore(dart?.bed)) {
       numberOfHits = numberOfHits + 3;
-    } else {
+    } else if (isMissScore(dart?.bed)) {
+       //no change
+     } else {
        numberOfHits++;
      }
   });
   return numberOfHits;
 }
 
-const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCricketStats>, roundScore: [string, string, string], playerIndex: number, scoringNumbers: number[] = []) => {
-  roundScore.forEach((dartThrown) => {
-    const hitNumber = getScoringNumberFromBed(dartThrown);
+const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = [], addEvent: (event: GameEvent) => void) => {
+  roundScore.forEach((dartThrown, index) => {
+    const hitNumber = getScoringNumberFromBed(dartThrown?.bed);
     if (isNaN(hitNumber)) return;
-    const currentPlayerScoringStatus = playerStats[playerIndex]?.scoringNumberStatus ?? {};
-    const hitCountWithDart = isDoubleScore(dartThrown) ? 2 : isTripleScore(dartThrown) ? 3 : 1;
-    if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber)) {
+    // FIXME: calculate current round
+    const currentRound = playerStats[player]?.roundsPlayed ?? 1;
+    const currentPlayerScoringStatus = playerStats[player]?.scoringNumberStatus ?? {};
+    const hitCountWithDart = isDoubleScore(dartThrown?.bed) ? 2 : isTripleScore(dartThrown?.bed) ? 3 : isMissScore(dartThrown?.bed) ? 0 : 1;
+    if (Object.keys(currentPlayerScoringStatus).includes(`${hitNumber}`) && scoringNumbers.includes(hitNumber) && hitCountWithDart > 0) {
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
-      const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[parseInt(pk)].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && parseInt(pk) !== playerIndex)
+      const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[pk].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && pk !== player)
       if (hitTotal > 3) {
+        let _scoreEventDescription = `${playerUtils.displayName(player)} scores on`
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
-            playerStats[parseInt(pk)].scoringTotal += (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber);
+            const partialMultipleScore = (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber)
+            playerStats[pk].scoringTotal += partialMultipleScore;
+            _scoreEventDescription += ` ${playerUtils.displayName(pk)} (+${partialMultipleScore})`;
           } else {
-            playerStats[parseInt(pk)].scoringTotal += (hitCountWithDart * hitNumber);
+            playerStats[pk].scoringTotal += (hitCountWithDart * hitNumber);
           }
         })
+        if (playersKeysToIterate.length > 0) {
+          addEvent({
+            roundInfo: { player, round: currentRound, dart: index },
+            eventName: 'Score',
+            eventDescription: _scoreEventDescription
+          });
+        }
       }
     }
     // iterate on number of hits
@@ -80,25 +160,34 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<number, IPlayerCri
     } else {
       currentPlayerScoringStatus[hitNumber] = hitCountWithDart;
     }
+    if (scoringNumbers.includes(hitNumber)) {
+      // FIXME: we should condense these
+      addEvent({
+        roundInfo: { player, round: currentRound, dart: index },
+        eventName: 'Hit',
+        eventDescription: `${playerUtils.displayName(player)} hit scoring number [${hitNumber}] ${hitCountWithDart} time(s)`,
+      });
+    }
   })
 }
 
 const buildCricketGameData = (config: {
   datePlayed: number;
-  playerCount: number;
+  players: string[];
   scoringNumbers?: number[];
-}, rounds: Record<number, [string, string, string]>[]): ICricketGameData => {
-  const playerStats = rounds.reduce<Record<number, IPlayerCricketStats>>(
+}, rounds: DartRound[]): ICricketGameData => {
+  const gameEvents: GameEvent[] = [];
+  const playerStats = rounds.reduce<Record<string, IPlayerCricketStats>>(
     (acc, round) => {
-      Object.entries(round).forEach(([playerIndex, roundScore]) => {
-        const playerStats = acc[parseInt(playerIndex)];
-        iterateScoresForPlayerRoundScore(acc, roundScore, parseInt(playerIndex) ?? 0, config.scoringNumbers);
+      Object.entries(round).forEach(([player, roundScore]) => {
+        const playerStats = acc[player];
+        iterateScoresForPlayerRoundScore(acc, roundScore, player, config.scoringNumbers, (event) => gameEvents.push(event));
         playerStats.roundsPlayed++;
       });
       return acc;
     },
-    Array.from(Array(config.playerCount).keys()).reduce<Record<number, IPlayerCricketStats>>((acc, player) => {
-      acc[player ?? 0] = {
+    config.players.reduce<Record<string, IPlayerCricketStats>>((acc, player) => {
+      acc[player] = {
         roundsPlayed: 0,
         scoringNumberStatus: {},
         scoringTotal: 0,
@@ -106,7 +195,7 @@ const buildCricketGameData = (config: {
       return acc;
     }, {})
   );
-  const _gameData: ICricketGameData = { config, rounds, playerStats };
+  const _gameData: ICricketGameData = { config, rounds, playerStats, events: gameEvents };
   if (
     !Object.values(_gameData.playerStats).find(
       (stats) => stats.roundsPlayed < (rounds.length ?? 0),
@@ -124,35 +213,80 @@ const getTotalHits = (scoringNumberStatus: Record<number, number>, scoringNums: 
 
 export interface CricketGamePageProps {}
 
+const CountUpScore = ({score}: {score: number}) => {
+  const [localScore, setLocalScore] = useState(0);
+
+  useEffect(() => {
+    const count = score - localScore;
+    if (count === 0) return;
+    if (localScore > score) {
+      setLocalScore(score);
+      return;
+    }
+    const iterations = Math.round(800 / 20);
+    let ticks = 0;
+    const iterate = setInterval(() => {
+      ticks++
+      setLocalScore(score + Math.floor(count*Math.log10(ticks/iterations)));
+      if (ticks === iterations) {
+        clearInterval(iterate);
+      }
+    }, 20)
+  }, [score]);
+
+  return <b style={localScore < score ? { color: 'red'} : {}}>{localScore}</b>
+}
+
 export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const classes = useStyles();
-  const { formikValidationProps, onSubmit: onFormSubmit } = useDelayedFormValidation<SchemaType>();
+  const history = useHistory();
+
+  const pageState: Partial<ICricketGameData> = (history?.location?.state ?? {}) as ICricketGameData;
 
   const [gameData, setGameData] = useState<ICricketGameData>({
     config: {
-      datePlayed: new Date().getTime(),
-      scoringNumbers: [20, 19, 18, 17, 16, 15, 25],
-      playerCount: 2,
+      datePlayed: pageState.config?.datePlayed ?? new Date().getTime(),
+      scoringNumbers:  pageState.config?.scoringNumbers ?? [20, 19, 18, 17, 16, 15, 25],
+      players: pageState.config?.players ?? ['Player 1', 'Player 2'],
     },
     rounds: [{}],
-    playerStats: {}
+    playerStats: {},
+    events: [{ eventName: 'New Game', eventDescription: 'Cricket game created.', roundInfo: { round: 0, player: '_game_', dart: null }}]
   });
-  const [dart1, setDart1] = useState<string>('');
-  const [dart2, setDart2] = useState<string>('');
-  const [dart3, setDart3] = useState<string>('');
+
+  const [editCurrentDart, setEditCurrentDart] = useState<1 | 2 | 3 | null>(null);
+  const [dart1, setDart1] = useState<DartThrow>(null);
+  const [dart2, setDart2] = useState<DartThrow>(null);
+  const [dart3, setDart3] = useState<DartThrow>(null);
+  const [editScore, setEditScore] = useState<RoundInfo | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showFunStats, setShowFunStats] = useState(false);
+  const leaguePlayerMembers = useSelector(leagueSelectors.selectLeaguePlayerEmails);
+
+  const playerColorMap = useMemo(() => {
+    const newPlayers: string[] = [];
+    return gameData.config.players.reduce<Record<string, string>>((acc, playerKey) => {
+      let _leagueIndex = leaguePlayerMembers.indexOf(playerKey);
+      if (_leagueIndex === -1) {
+        _leagueIndex = leaguePlayerMembers.length+newPlayers.length;
+        newPlayers.push(playerKey);
+      }
+      acc[playerKey] = getPlayerColor(playerKey, _leagueIndex);
+      return acc;
+    }, {});
+  },[leaguePlayerMembers, gameData.playerStats]);
 
   const playerStats = gameData?.playerStats ?? {};
   const rounds = gameData?.rounds ?? [{}];
   const currentRound = rounds.length - 1;
 
-  const remainingRoundPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
+  const remainingRoundPlayers = gameData?.config.players.filter(
     (player) => (playerStats[player]?.roundsPlayed ?? 0) !== rounds.length);
   const currentPlayer = remainingRoundPlayers[0];
 
-  const renderPlayerScore = (player: number, scoringNumber: number) => {
+  const renderPlayerScore = (player: string, scoringNumber: number) => {
     const numberOfHits = calculateNumberOfHits(scoringNumber, player, rounds);
-    const notClearedPlayers = Array.from(Array(gameData?.config.playerCount ?? 1).keys()).filter(
+    const notClearedPlayers = gameData?.config.players.filter(
       (player) => (playerStats[player]?.scoringNumberStatus[scoringNumber] ?? 0) < 3);
     const color = notClearedPlayers.length > 0 ? numberOfHits >= 3 ? 'secondary' : 'primary' : 'disabled';
     return (
@@ -164,19 +298,37 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     );
   }
 
-  const saveScore = async (_newScore: string[]) => {
+  const saveScore = async (_newScore: DartThrow[]) => {
     if (saving) {
       return;
     }
     setSaving(true);
     if (!gameData?.config) return;
     const newRounds = [...rounds];
-    newRounds[currentRound][currentPlayer] = [_newScore?.[0] ?? 0, _newScore?.[1] ?? 0, _newScore?.[2] ?? 0];
+    newRounds[currentRound][currentPlayer] = [_newScore?.[0] ?? MISSED_DART, _newScore?.[1] ?? MISSED_DART, _newScore?.[2] ?? MISSED_DART];
     const newGameData = buildCricketGameData(gameData?.config, newRounds);
     setGameData(newGameData);
-    setDart1('')
-    setDart2('');
-    setDart3('');
+    setDart1(null)
+    setDart2(null);
+    setDart3(null);
+    setSaving(false);
+  };
+
+  const saveEditScore = async (_newScore: DartThrow) => {
+    if (saving) {
+      return;
+    }
+    setSaving(true);
+    if (!gameData?.config || !editScore || editScore.dart === null) return;
+    setGameData((_prev) => {
+      const newRounds = [..._prev.rounds];
+      newRounds[editScore.round][editScore.player][editScore.dart ?? 0] = _newScore;
+      return {
+        ..._prev,
+        rounds: newRounds,
+      }
+    });
+    setEditScore(null);
     setSaving(false);
   };
 
@@ -186,61 +338,62 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   };
 
   const handleDartboardClick = (details: DartboardClickDetails) => {
-    if (dart1 === '') {
-      setDart1(details.bed);
-    } else if (dart2 === '') {
-      setDart2(details.bed);
-    } else if (dart3 === '') {
-      setDart3(details.bed);
+    if (!!editScore) {
+      saveEditScore(details);
+    } else if (!dart1 || editCurrentDart === 1) {
+      setDart1(details);
+    } else if (!dart2 || editCurrentDart === 2) {
+      setDart2(details);
+    } else if (!dart3 || editCurrentDart === 3) {
+      setDart3(details);
     }
+    setEditCurrentDart(null);
   };
 
-  const playerHasMostHits = (player: number) => {
+  const playerHasMostHits = (player: string) => {
     const userStats = playerStats[player];
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
-    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
+    const allPlayerHitCount = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
     return allPlayerHitCount.every((s) => s < totalHits)
   }
 
-  const playerHasWinningScore = (player: number) => {
+  const playerHasWinningScore = (player: string) => {
     const userStats = playerStats[player];
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => ps.scoringTotal)
     // Player has least points scored on them
     return otherPlayerStats.every((s) => s > userStats.scoringTotal);
   }
 
-  const playerHasLeastHits = (player: number) => {
+  const playerHasLeastHits = (player: string) => {
     const userStats = playerStats[player];
     // Calculate total hits
     const totalHits: number = getTotalHits(userStats.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []);
-    const allPlayerHitCount = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
-    console.log(`Player #${player} hits ${totalHits}`, allPlayerHitCount);
+    const allPlayerHitCount = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => getTotalHits(ps.scoringNumberStatus, gameData?.config?.scoringNumbers ?? []))
     return allPlayerHitCount.every((s) => s > totalHits);
   }
 
-  const playerHasLosingScore = (player: number) => {
+  const playerHasLosingScore = (player: string) => {
     const userStats = playerStats[player];
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => ps.scoringTotal)
     // Player has more points scored on them
     return otherPlayerStats.every((s) => s < userStats.scoringTotal);
   }
 
-  const isWinner = (player: number) => {
+  const isWinner = (player: string) => {
     const userStats = playerStats[player];
     if (!userStats) return false;
     const unfinishedEntries = Object.entries(userStats.scoringNumberStatus).filter(([scoreNum,_]) => (gameData?.config?.scoringNumbers ?? []).includes(parseInt(scoreNum))).filter(([_, hits]) => hits < 3);
-    const otherPlayerStats = Object.entries(playerStats).filter(([pNum,_]) => pNum !== `${player}`).map(([_, ps]) => ps.scoringTotal)
+    const otherPlayerStats = Object.entries(playerStats).filter(([_player,_]) => _player !== player).map(([_, ps]) => ps.scoringTotal)
     const allScoringNumbersScored = !(gameData?.config?.scoringNumbers ?? []).some((scn) => Object.keys(userStats.scoringNumberStatus).includes(`${scn}`));
-    console.log(`Player #${player} left to hit ${unfinishedEntries}`, otherPlayerStats);
     return allScoringNumbersScored && unfinishedEntries?.length === 0 && otherPlayerStats.every((s) => s > userStats.scoringTotal);
   };
-  const isLeader = (player: number) => {
+  const isLeader = (player: string) => {
     const userStats = playerStats[player];
     if (!userStats) return false;
     return !isWinner(player) && (playerHasWinningScore(player) || playerHasMostHits(player));
   };
-  const isLoser = (player: number) => {
+  const isLoser = (player: string) => {
     return (
       rounds.length > 1 &&
       !isLeader(player) &&
@@ -248,7 +401,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     );
   };
 
-  const playerEmoji = (player: number) => {
+  const playerEmoji = (player: string) => {
     if (isWinner(player)) {
       return <>&#128081;</>;
     } else if (isLeader(player)) {
@@ -256,62 +409,44 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     } else if (isLoser(player)) {
       return <>&#128169;</>;
     }
-    return null;
+    return <>{'  '}</>;
   };
 
-  const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(parseInt(player)));
+  const gameOver = Object.keys(gameData.playerStats).some((player) => isWinner(player));
+
+  // FIXME: add 'opt out' behavior to skip players when they have soft-won
 
   return (
     <>
-      <Formik
-        {...formikValidationProps}
-        initialValues={emptyFormDefaults}
-        validationSchema={Schema}
-        onSubmit={handleRootErrors(async (values) => {
-          const _newGameData = buildCricketGameData({
-            datePlayed: new Date().getTime(),
-            scoringNumbers: [...values.scoringNumbers],
-            playerCount: values.playerCount ?? 2,
-          }, [{}]);
-          setGameData(_newGameData);
-        })}
-      >
-        {(formProps) => (
-          <Form onSubmit={onFormSubmit(formProps)}>
-            <Grid container spacing={2} justify="center">
-              <Grid item xs={12}>
-                <RootError formProps={formProps} />
-              </Grid>
-              <Grid item>
-                <SelectField
-                  field="scoringNumbers"
-                  label="Numbers to play"
-                  options={
-                    [...Array.from(Array(21).keys()), 25].map((number) => ({ value: number, label: `${number}` })) ?? []
-                  }
-                  multiple
-                  className={classes.formField}
-                />
-                <InputField field="playerCount" label="Players" type="number" inputProps={{ min: 1 }} className={classes.formField} />
-                <Button variant="contained" color="primary" type="submit" disabled={formProps.isSubmitting}>
-                  Reset game
-                </Button>
-              </Grid>
-            </Grid>
-          </Form>
-        )}
-      </Formik>
-      <div style={{ display: 'flex', gap: 20, marginTop: 20, flexWrap: 'wrap' }}>
-        <Grid container spacing={2} justify="center">
-          <Grid item xs={12}><h2 style={{ textAlign: 'center' }}>[Cut-Throat] Cricket</h2></Grid>
-          <Grid item xs={12}>
-            <div style={{ flex: '1 0 auto', justifyItems: 'center', marginTop: 20 }}>
+      <Box minHeight="100vh" width="100%" display="flex" flexDirection="column">
+        <Grid container justify="space-around">
+          <Grid item>
+            <Box height="100%" alignContent="center">
               <table className={classes.cricketTable} style={{ borderWidth: 1, borderStyle: 'solid' }}>
                 <thead>
                 <tr>
-                  <td style={{ fontWeight: 'bold' }}>Player</td>
-                  <td style={{ fontWeight: 'bold' }}>Score</td>
-                  {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
+                  <td></td>
+                  {gameData?.config.players.map((player) => (
+                    <td style={{
+                      borderTopStyle: 'solid',
+                      borderTopWidth: '4px',
+                      borderTopColor: playerColorMap[player] ?? '#808080',
+                    }}>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
+                  ))}
+                </tr>
+                </thead>
+
+                <tbody>
+                <tr>
+                  <td>Score</td>
+                  {gameData?.config.players.map((player) => (
+                    <td key={player}>
+                      <b><CountUpScore score={gameData?.playerStats?.[player]?.scoringTotal ?? 0} /></b>
+                    </td>
+                  ))}
+                </tr>
+                {gameData?.config.scoringNumbers?.sort().map((scoringNumber) => (
+                  <tr>
                     <td key={scoringNumber} style={{ fontWeight: 'bold' }}>
                       <div
                         style={{
@@ -322,15 +457,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                         {scoringNumber === 25 ? 'Bull' : scoringNumber}
                       </div>
                     </td>
-                  ))}
-                </tr>
-                </thead>
-                <tbody>
-                {Array.from(Array(gameData?.config.playerCount ?? 1).keys()).map((player) => (
-                  <tr key={player}>
-                    <td>{currentPlayer === player ? '> ' : ''}Player #{player+1}:&#9; {playerEmoji(player)}</td>
-                    <td><b>{gameData?.playerStats?.[player]?.scoringTotal ?? 0}</b></td>
-                    {gameData?.config.scoringNumbers?.map((scoringNumber) => (
+                    {gameData?.config.players.map((player) => (
                       <td key={`${player}_${scoringNumber}`} style={{ fontWeight: 'bold' }}>
                         {renderPlayerScore(player, scoringNumber ?? 0)}
                       </td>
@@ -339,64 +466,142 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                 ))}
                 </tbody>
               </table>
-            </div>
+            </Box>
           </Grid>
-          <Grid item xs={4}>
-            <div style={{ paddingLeft: '20%' }}>{Object.entries(gameData.playerStats).map(([player, stats]) => {
-              return (
-                <div>
-                  <div><b>Player #{parseInt(player)+1}</b></div>
-                  <div>
-                    <p>Score: {stats.scoringTotal}</p>
-                    <p>Rounds: {stats.roundsPlayed}</p>
-                    <p>Hits: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
-                  </div>
-                </div>
-              )
-            })}</div>
-          </Grid>
-          <Grid item xs={4}>
-            {!gameOver ? (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-              <h2>Current player: #{currentPlayer + 1}</h2>
-              <div>
-                <DartboardWrapper size={400} onClick={handleDartboardClick} />
-              </div>
-              <div style={{ marginTop: 20 }}>
-                <form onSubmit={addScore}>
-                  <input value={dart1} onChange={(evt) => setDart1(evt.target.value)}/>
-                  <input value={dart2} onChange={(evt) => setDart2(evt.target.value)}/>
-                  <input value={dart3} onChange={(evt) => setDart3(evt.target.value)}/>
-                  <input type="submit" value="Save score" />
-                </form>
-              </div>
-            </div>) : (<div style={{ flex: '1 0 auto', justifyItems: 'center' }}>
-              <h2>Game over!</h2>
-              <p>Winner: Player #{(Object.keys(gameData.playerStats).map(parseInt).find((player) => isWinner(player)) ?? 0) + 1}</p>
-            </div>)}
-          </Grid>
-          <Grid item xs={4}>
-            <div style={{ paddingLeft: '20%' }}>
-              {rounds.map((round, index) => (
-                <div>
-                  <div><b>Round #{index + 1}</b></div>
-                  <div>
-                    {Object.entries(round).map(([playerIndex, scores]) => (
-                      <p>
-                        <b>Player</b> #{parseInt(playerIndex)+1}&#9;--&#9;{scores.map((scoreBed, index) =>
-                          <span>
-                      {isDoubleScore(scoreBed) ? 'D' : isTripleScore(scoreBed) ? 'T' : ''}{getScoringNumberFromBed(scoreBed)}
-                            {index === scores?.length - 1 ? '' : ', '}
-                    </span>
-                      )}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <Grid item>
+            {!gameOver ? (
+              <Badge anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }} badgeContent={
+                <Box onClick={() => handleDartboardClick(MISSED_DART)} className={classes.missButton}>
+                  <Typography variant="h6">MISS</Typography>
+                </Box>
+              }>
+                <Box padding={2} className={!!editScore ? classes.editingModeDartBoard : ''} style={{ borderRadius: (window.innerHeight * (80/100))}}>
+                  <DartboardWrapper size={(window.innerHeight * (80/100))} onClick={handleDartboardClick} />
+                </Box>
+              </Badge>
+            ) : (
+              <Box>
+                <h2>Game over!</h2>
+                <p>Winner: {(Object.keys(gameData.playerStats).find((player) => isWinner(player)))}</p>
+              </Box>
+            )}
           </Grid>
         </Grid>
-      </div>
+      </Box>
+      <Box className={classes.ticker}>
+        <Grid container>
+          <Grid item xs={1}>
+            <Box display="flex" height="100%" alignItems="center">
+              <Button variant="text" color="secondary" onClick={() => setShowFunStats(true)}>
+                Stats
+              </Button>
+            </Box>
+          </Grid>
+          <Grid item xs={6}>
+            <Box display="flex" width="100%" className={classes.tickerScores}>
+              <Box display="flex" flexDirection="row-reverse">
+                <Box padding={1}><Typography>Cut-Throat Cricket</Typography></Box>
+                {rounds.map((round, index) => (
+                  <>
+                    <Box className={classes.tickerRoundNumber}>{index+1}</Box>
+                    {Object.entries(round).map(([player, scores]) => (
+                      <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
+                        <Box key={`${player}_round_${index}_scores`} display="flex">
+                          <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
+                            <Box display="flex" className={classes.playerRound} justifyContent="row-reverse" style={{
+                              backgroundColor: playerColorMap[player] ?? '#808080',
+                              borderColor: playerColorMap[player] ?? '#808080',
+                            }}>
+                              {scores.map((dart, idx) =>
+                                <DartScore
+                                  key={`${player}_round_${index}_score_${idx}`}
+                                  position={idx=== 0 ? 'left' : idx === (scores.length - 1) ? 'right': 'default'}
+                                  dart={dart}
+                                  onClick={() => {
+                                    setEditCurrentDart(null);
+                                    setEditScore(getIsSameRound(editScore, { player, round: index, dart: idx}) ? null : {player, round: index, dart: idx});
+                                  }}
+                                  selected={getIsSameRound(editScore, { player, round: index, dart: idx})}
+                                  roundInfo={{ player, round: index, dart: idx}}
+                                  gameEvents={gameData.events}
+                                />
+                              )}
+                            </Box>
+                          </Tooltip>
+                        </Box>
+                      </Slide>
+                    ))}
+                  </>
+                ))}
+              </Box>
+              <TickerGameEventsProps events={gameData.events} />
+            </Box>
+          </Grid>
+          <Grid item xs={5}>
+            <Box display="flex" height="100%" justifyContent="space-between" paddingX={2} alignItems="center">
+              <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
+              <form onSubmit={addScore}>
+                <Box display="flex" flexDirection="row" justifyContent="flex-end">
+                  <DartScore disabled={!!editScore} onClick={() => {
+                    setEditScore(null);
+                    setEditCurrentDart(editCurrentDart === 3 ? null : 3);
+                  }} position="left" dart={dart3} selected={editCurrentDart === 3} />
+                  <DartScore disabled={!!editScore} onClick={() => {
+                    setEditScore(null);
+                    setEditCurrentDart(editCurrentDart === 2 ? null : 2)
+                  }} dart={dart2} selected={editCurrentDart === 2} />
+                  <DartScore disabled={!!editScore} onClick={() => {
+                    setEditScore(null);
+                    setEditCurrentDart(editCurrentDart === 1 ? null : 1)
+                  }} position="right" dart={dart1} selected={editCurrentDart === 1} />
+                  <Button disabled={!!editScore} type="submit" color="secondary">Save score</Button>
+                </Box>
+              </form>
+            </Box>
+          </Grid>
+        </Grid>
+      </Box>
+      <Drawer anchor="left"
+              open={showFunStats}
+              variant="persistent"
+              onClose={() => setShowFunStats(false)}
+              classes={{
+                paper: `${classes.drawer} ${classes.drawerLeft}`,
+              }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center" className={classes.title}>
+          <Box>
+            <Typography component="h3" variant="h5">
+              Player Stats
+            </Typography>
+          </Box>
+          <Box>
+            <Tooltip title="Close drawer">
+              <IconButton onClick={() => setShowFunStats(false)} size="small">
+                <Close />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box height="100%" padding={4} style={{ overflowY: 'scroll'}}>
+          {!Object.entries(gameData.playerStats).length && (<Typography variant="subtitle1">No stats</Typography>)}
+          {Object.entries(gameData.playerStats).map(([player, stats]) => {
+            return (
+              <div>
+                <div><b>{playerUtils.displayName(player)}</b></div>
+                <div>
+                  <p>Score: {stats.scoringTotal}</p>
+                  <p>Rounds: {stats.roundsPlayed}</p>
+                  <p>Hits: {Object.entries(stats.scoringNumberStatus).map(([scNum, sc]) => !sc ? '' : `${scNum}: ${sc}, `)}</p>
+                </div>
+              </div>
+            )
+          })}
+        </Box>
+      </Drawer>
     </>
   );
 };

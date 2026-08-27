@@ -24,22 +24,9 @@ import { Line } from 'react-chartjs-2';
 import { hooks as gamesHooks, selectors as gamesSelectors } from 'store/games/slice';
 import { selectors as leagueSelectors, actions as leagueActions } from 'store/leagues/slice';
 import { DEFAULT_ELO } from 'store/games/elo';
+import { getPlayerColor } from '../../../shared/utils/player';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
-
-const colors = [
-  '#8dd3c7',
-  '#bebada',
-  '#fb8072',
-  '#80b1d3',
-  '#fdb462',
-  '#b3de69',
-  '#fccde5',
-  '#d9d9d9',
-  '#bc80bd',
-  '#ccebc5',
-  '#ffed6f',
-];
 
 export interface EloHistoryPageProps {}
 
@@ -84,8 +71,8 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
                   eloRankings.findIndex((value) => value[0] === email) + 1
                 })`,
                 data: [DEFAULT_ELO, ...eloHistory.map(({ elos }) => elos[email])],
-                backgroundColor: colors[emailIdx % colors.length],
-                borderColor: colors[emailIdx % colors.length],
+                backgroundColor: getPlayerColor(email, emailIdx),
+                borderColor: getPlayerColor(email, emailIdx),
               })),
           }}
           options={{

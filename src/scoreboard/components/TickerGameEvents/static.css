@@ -1,0 +1,14 @@
+
+@keyframes slide-across {
+    0% {
+        translate: -700px 0;
+    }
+    100% {
+        translate: 0 0;
+    }
+}
+
+@keyframes leave {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.5); opacity: 0; }
+}

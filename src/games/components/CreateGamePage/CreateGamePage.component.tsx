@@ -10,11 +10,13 @@ import shuffle from 'lodash.shuffle';
 import { handleRootErrors, RootError, InputField, SelectField, CheckboxField } from 'form/components';
 import { useDelayedFormValidation } from 'form/hooks';
 import { selectors as leagueSelectors } from 'store/leagues/slice';
-import { IGameData } from 'store/games/types';
+import { GameMode, GameModeOptions, ICricketGameData, IGameData } from 'store/games/types';
 import { calculatePlayerStats } from 'store/games/helpers';
 import { hooks as gameHooks } from 'store/games/slice';
 
 const Schema = Yup.object({
+  gameMode: Yup.string().oneOf(Object.values(GameMode)).default(GameMode.OHONE),
+  scoringNumbers: Yup.array().of(Yup.number().default(0)).required('Set playable numbers').default([20, 19, 18, 17, 16, 15, 25]),
   goal: Yup.number().required('Goal is required').min(1).default(301),
   players: Yup.array().of(Yup.string()).default([]),
   randomize: Yup.boolean().default(false),
@@ -45,23 +47,35 @@ export const CreateGamePage: FC<CreateGamePageProps> = () => {
       validationSchema={Schema}
       onSubmit={handleRootErrors(async (values) => {
         const saveGameId = uuid();
-        const gameData: IGameData = {
-          config: {
-            datePlayed: new Date().getTime(),
-            goal: values.goal,
-            players: values.randomize ? shuffle([...values.players]) : values.players,
-            forfeits: [],
-          },
-          rounds: [{}],
-          playerStats: {},
-        };
-        calculatePlayerStats(gameData);
-        await API.put('leagues', `/leagues/${selectedLeague?.leagueKey}/games/${saveGameId}`, {
-          body: gameData,
-        });
-        makeGamesStale();
+        if (values.gameMode === GameMode.CRICKET) {
+          const cricketGame: Partial<ICricketGameData> = {
+            config: {
+              datePlayed: new Date().getTime(),
+              players: values.randomize ? shuffle([...values.players]) : values.players,
+              scoringNumbers: values.scoringNumbers,
+            },
+          };
 
-        history.replace(`/game/${saveGameId}`);
+          history.replace(`/cricket`, cricketGame);
+        } else {
+          const gameData: IGameData = {
+            config: {
+              datePlayed: new Date().getTime(),
+              goal: values.goal,
+              players: values.randomize ? shuffle([...values.players]) : values.players,
+              forfeits: [],
+            },
+            rounds: [{}],
+            playerStats: {},
+          };
+          calculatePlayerStats(gameData);
+          await API.put('leagues', `/leagues/${selectedLeague?.leagueKey}/games/${saveGameId}`, {
+            body: gameData,
+          });
+          makeGamesStale();
+
+          history.replace(`/game/${saveGameId}`);
+        }
       })}
     >
       {(formProps) => (
@@ -71,8 +85,29 @@ export const CreateGamePage: FC<CreateGamePageProps> = () => {
               <RootError formProps={formProps} />
             </Grid>
             <Grid item xs={12}>
-              <InputField field="goal" label="Goal" type="number" className={classes.formField} />
+              <SelectField
+                field="gameMode"
+                label="Game Mode"
+                options={
+                  GameModeOptions
+                }
+                className={classes.formField}
+              />
             </Grid>
+            {formProps.values.gameMode === GameMode.OHONE && (<Grid item xs={12}>
+              <InputField field="goal" label="Goal" type="number" className={classes.formField} />
+            </Grid>)}
+            {formProps.values.gameMode === GameMode.CRICKET && (<Grid item xs={12}>
+              <SelectField
+                field="scoringNumbers"
+                label="Numbers to play"
+                options={
+                  [...Array.from(Array(21).keys()), 25].map((number) => ({ value: number, label: `${number}` })) ?? []
+                }
+                multiple
+                className={classes.formField}
+              />
+            </Grid>)}
             <Grid item xs={12}>
               <SelectField
                 field="players"
