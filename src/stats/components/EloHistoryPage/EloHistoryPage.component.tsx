@@ -37,6 +37,7 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
   const eloRankings = useSelector(gamesSelectors.selectEloRankings);
   const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
   const playerColorMap = useSelector(leagueSelectors.selectPlayerColorMap);
+  const playerDisplayMap = useSelector(leagueSelectors.selectPlayerDisplayMap);
   const eloKFactor = useSelector(leagueSelectors.selectEloKFactor);
 
   const reversedEloHistory = [...eloHistory].reverse();
@@ -67,7 +68,7 @@ export const EloHistoryPage: FC<EloHistoryPageProps> = () => {
             datasets: Object.keys(finalElo)
               .sort((a, b) => a.localeCompare(b))
               .map((email, emailIdx) => ({
-                label: `${email} (${finalElo[email]}, rank ${
+                label: `${playerDisplayMap?.[email] ?? email} (${finalElo[email]}, rank ${
                   eloRankings.findIndex((value) => value[0] === email) + 1
                 })`,
                 data: [DEFAULT_ELO, ...eloHistory.map(({ elos }) => elos[email])],
