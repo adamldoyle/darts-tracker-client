@@ -1,4 +1,4 @@
-import { FC, FormEvent, useEffect, useMemo, useState } from 'react';
+import { FC, FormEvent, useEffect, useState } from 'react';
 import { Badge, Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { useSelector } from 'react-redux';
 import { DartRound, DartThrow, GameEvent, ICricketGameData, IPlayerCricketStats, RoundInfo } from 'store/games/types';
@@ -15,7 +15,6 @@ import { playerUtils } from 'shared/utils';
 import { DartScore } from '../../../scoreboard/components/DartScore';
 import { getIsSameRound } from '../../../store/games/helpers';
 import { selectors as leagueSelectors } from 'store/leagues/slice';
-import { getPlayerColor } from '../../../shared/utils/player';
 
 const useStyles = makeStyles((theme) => ({
   formField: {
@@ -261,20 +260,8 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const [editScore, setEditScore] = useState<RoundInfo | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFunStats, setShowFunStats] = useState(false);
-  const leaguePlayerMembers = useSelector(leagueSelectors.selectLeaguePlayerEmails);
 
-  const playerColorMap = useMemo(() => {
-    const newPlayers: string[] = [];
-    return gameData.config.players.reduce<Record<string, string>>((acc, playerKey) => {
-      let _leagueIndex = leaguePlayerMembers.indexOf(playerKey);
-      if (_leagueIndex === -1) {
-        _leagueIndex = leaguePlayerMembers.length+newPlayers.length;
-        newPlayers.push(playerKey);
-      }
-      acc[playerKey] = getPlayerColor(playerKey, _leagueIndex);
-      return acc;
-    }, {});
-  },[leaguePlayerMembers, gameData.playerStats]);
+  const playerColorMap = useSelector(leagueSelectors.selectPlayerColorMap);
 
   const playerStats = gameData?.playerStats ?? {};
   const rounds = gameData?.rounds ?? [{}];
@@ -430,7 +417,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                     <td style={{
                       borderTopStyle: 'solid',
                       borderTopWidth: '4px',
-                      borderTopColor: playerColorMap[player] ?? '#808080',
+                      borderTopColor: `#${playerColorMap?.[player] ?? '#808080'}`,
                     }}>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
                   ))}
                 </tr>
@@ -512,8 +499,8 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                         <Box key={`${player}_round_${index}_scores`} display="flex">
                           <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
                             <Box display="flex" className={classes.playerRound} justifyContent="row-reverse" style={{
-                              backgroundColor: playerColorMap[player] ?? '#808080',
-                              borderColor: playerColorMap[player] ?? '#808080',
+                              backgroundColor: `#${playerColorMap?.[player] ?? '#808080'}`,
+                              borderColor: `#${playerColorMap?.[player] ?? '#808080'}`,
                             }}>
                               {scores.map((dart, idx) =>
                                 <DartScore

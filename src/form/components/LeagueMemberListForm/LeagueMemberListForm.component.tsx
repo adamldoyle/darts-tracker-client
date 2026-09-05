@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from 'react';
+import React, { FC, useEffect, useRef } from 'react';
 import {
   TextField,
   TextFieldProps,
@@ -74,7 +74,6 @@ export const LeagueMemberListForm: FC<AllProps> = ({ label, rowLabel, field, inp
         </Grid>
         {fieldProps.value.map((rowValue: Record<string, string>, rowIdx: number) => {
           const showError = meta.touched && Array.isArray(meta.error) && Boolean(meta.error?.[rowIdx]);
-          console.log("Color", rowValue['colorCode']);
           return (
             <Grid key={rowIdx} item xs={12} style={{ display: 'flex', alignItems: 'center' }}>
               <Grid container spacing={1}>
