@@ -1,17 +1,17 @@
 import { Story, Meta } from '@storybook/react';
 import * as Yup from 'yup';
 import { FormArgs, formDecorator, argTypes, excludeFormArgs } from '../storyUtils';
-import { InputFieldList, InputFieldListProps } from './InputFieldList.component';
+import { LeagueMemberListForm, LeagueMemberListFormProps } from './LeagueMemberListForm.component';
 
 interface StoryArgs {
   required: boolean;
 }
 
-type AllProps = InputFieldListProps & FormArgs & StoryArgs;
+type AllProps = LeagueMemberListFormProps & FormArgs & StoryArgs;
 
 export default {
-  title: 'components/Form/InputFieldList',
-  component: InputFieldList,
+  title: 'components/Form/LeagueMemberListForm',
+  component: LeagueMemberListForm,
   argTypes: { ...argTypes },
   decorators: [formDecorator],
 } as Meta;
@@ -21,7 +21,7 @@ const excludeStoryArgs = (args: AllProps) => {
   return rest;
 };
 
-const Template: Story<AllProps> = (args) => <InputFieldList {...excludeStoryArgs(args)} />;
+const Template: Story<AllProps> = (args) => <LeagueMemberListForm {...excludeStoryArgs(args)} />;
 
 export const Default = Template.bind({});
 Default.args = {

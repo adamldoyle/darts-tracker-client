@@ -1,4 +1,4 @@
-import { FC, FormEvent, useEffect, useMemo, useState } from 'react';
+import { FC, FormEvent, useEffect, useState } from 'react';
 import { Badge, Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { useSelector } from 'react-redux';
 import { DartRound, DartThrow, GameEvent, ICricketGameData, IPlayerCricketStats, RoundInfo } from 'store/games/types';
@@ -11,11 +11,9 @@ import {
   isTripleScore, MISSED_DART, TickerGameEventsProps,
 } from '../../../scoreboard/components';
 import { useHistory } from 'react-router-dom';
-import { playerUtils } from 'shared/utils';
 import { DartScore } from '../../../scoreboard/components/DartScore';
 import { getIsSameRound } from '../../../store/games/helpers';
 import { selectors as leagueSelectors } from 'store/leagues/slice';
-import { getPlayerColor } from '../../../shared/utils/player';
 
 const useStyles = makeStyles((theme) => ({
   formField: {
@@ -123,7 +121,7 @@ const calculateNumberOfHits = (scoringNumber: number, player: string, rounds: Da
   return numberOfHits;
 }
 
-const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = [], addEvent: (event: GameEvent) => void) => {
+const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCricketStats>, roundScore: [DartThrow, DartThrow ,DartThrow], player: string, scoringNumbers: number[] = [], addEvent: (event: GameEvent) => void, _playerDisplayMap: Record<string, string>) => {
   roundScore.forEach((dartThrown, index) => {
     const hitNumber = getScoringNumberFromBed(dartThrown?.bed);
     if (isNaN(hitNumber)) return;
@@ -135,12 +133,12 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCri
       const hitTotal = (currentPlayerScoringStatus[hitNumber] ?? 0) + hitCountWithDart;
       const playersKeysToIterate = Object.keys(playerStats).filter((pk) => (playerStats[pk].scoringNumberStatus?.[hitNumber] ?? 0) < 3 && pk !== player)
       if (hitTotal > 3) {
-        let _scoreEventDescription = `${playerUtils.displayName(player)} scores on`
+        let _scoreEventDescription = `${_playerDisplayMap?.[player]} scores on`
         playersKeysToIterate.forEach((pk) => {
           if ((currentPlayerScoringStatus[hitNumber] ?? 0) < 3) {
             const partialMultipleScore = (((hitCountWithDart + (currentPlayerScoringStatus[hitNumber] ?? 0)) - 3) * hitNumber)
             playerStats[pk].scoringTotal += partialMultipleScore;
-            _scoreEventDescription += ` ${playerUtils.displayName(pk)} (+${partialMultipleScore})`;
+            _scoreEventDescription += ` ${_playerDisplayMap?.[player]} (+${partialMultipleScore})`;
           } else {
             playerStats[pk].scoringTotal += (hitCountWithDart * hitNumber);
           }
@@ -165,7 +163,7 @@ const iterateScoresForPlayerRoundScore = (playerStats: Record<string, IPlayerCri
       addEvent({
         roundInfo: { player, round: currentRound, dart: index },
         eventName: 'Hit',
-        eventDescription: `${playerUtils.displayName(player)} hit scoring number [${hitNumber}] ${hitCountWithDart} time(s)`,
+        eventDescription: `${_playerDisplayMap?.[player]} hit scoring number [${hitNumber}] ${hitCountWithDart} time(s)`,
       });
     }
   })
@@ -175,13 +173,13 @@ const buildCricketGameData = (config: {
   datePlayed: number;
   players: string[];
   scoringNumbers?: number[];
-}, rounds: DartRound[]): ICricketGameData => {
+}, rounds: DartRound[], _playerDisplayMap: Record<string, string>): ICricketGameData => {
   const gameEvents: GameEvent[] = [];
   const playerStats = rounds.reduce<Record<string, IPlayerCricketStats>>(
     (acc, round) => {
       Object.entries(round).forEach(([player, roundScore]) => {
         const playerStats = acc[player];
-        iterateScoresForPlayerRoundScore(acc, roundScore, player, config.scoringNumbers, (event) => gameEvents.push(event));
+        iterateScoresForPlayerRoundScore(acc, roundScore, player, config.scoringNumbers, (event) => gameEvents.push(event), _playerDisplayMap);
         playerStats.roundsPlayed++;
       });
       return acc;
@@ -261,20 +259,9 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
   const [editScore, setEditScore] = useState<RoundInfo | null>(null);
   const [saving, setSaving] = useState(false);
   const [showFunStats, setShowFunStats] = useState(false);
-  const leaguePlayerMembers = useSelector(leagueSelectors.selectLeaguePlayerEmails);
 
-  const playerColorMap = useMemo(() => {
-    const newPlayers: string[] = [];
-    return gameData.config.players.reduce<Record<string, string>>((acc, playerKey) => {
-      let _leagueIndex = leaguePlayerMembers.indexOf(playerKey);
-      if (_leagueIndex === -1) {
-        _leagueIndex = leaguePlayerMembers.length+newPlayers.length;
-        newPlayers.push(playerKey);
-      }
-      acc[playerKey] = getPlayerColor(playerKey, _leagueIndex);
-      return acc;
-    }, {});
-  },[leaguePlayerMembers, gameData.playerStats]);
+  const playerColorMap = useSelector(leagueSelectors.selectPlayerColorMap);
+  const playerDisplayMap = useSelector(leagueSelectors.selectPlayerDisplayMap);
 
   const playerStats = gameData?.playerStats ?? {};
   const rounds = gameData?.rounds ?? [{}];
@@ -306,7 +293,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
     if (!gameData?.config) return;
     const newRounds = [...rounds];
     newRounds[currentRound][currentPlayer] = [_newScore?.[0] ?? MISSED_DART, _newScore?.[1] ?? MISSED_DART, _newScore?.[2] ?? MISSED_DART];
-    const newGameData = buildCricketGameData(gameData?.config, newRounds);
+    const newGameData = buildCricketGameData(gameData?.config, newRounds, playerDisplayMap ?? {});
     setGameData(newGameData);
     setDart1(null)
     setDart2(null);
@@ -430,8 +417,8 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                     <td style={{
                       borderTopStyle: 'solid',
                       borderTopWidth: '4px',
-                      borderTopColor: playerColorMap[player] ?? '#808080',
-                    }}>{currentPlayer === player ? '> ' : ''}{playerUtils.displayName(player)}:&#9; {playerEmoji(player)}</td>
+                      borderTopColor: `#${playerColorMap?.[player] ?? '#808080'}`,
+                    }}>{currentPlayer === player ? '> ' : ''}{playerDisplayMap?.[player]}:&#9; {playerEmoji(player)}</td>
                   ))}
                 </tr>
                 </thead>
@@ -510,10 +497,10 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                     {Object.entries(round).map(([player, scores]) => (
                       <Slide key={`${player}_round_${index}_scores`} direction="right" in={true} timeout={800}>
                         <Box key={`${player}_round_${index}_scores`} display="flex">
-                          <Tooltip title={`${playerUtils.displayName(player)} round # ${index + 1}`}>
+                          <Tooltip title={`${playerDisplayMap?.[player]} round # ${index + 1}`}>
                             <Box display="flex" className={classes.playerRound} justifyContent="row-reverse" style={{
-                              backgroundColor: playerColorMap[player] ?? '#808080',
-                              borderColor: playerColorMap[player] ?? '#808080',
+                              backgroundColor: `#${playerColorMap?.[player] ?? '#808080'}`,
+                              borderColor: `#${playerColorMap?.[player] ?? '#808080'}`,
                             }}>
                               {scores.map((dart, idx) =>
                                 <DartScore
@@ -542,7 +529,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
           </Grid>
           <Grid item xs={5}>
             <Box display="flex" height="100%" justifyContent="space-between" paddingX={2} alignItems="center">
-              <Typography variant="h6">Current player: {playerUtils.displayName(currentPlayer)}</Typography>
+              <Typography variant="h6">Current player: {playerDisplayMap?.[currentPlayer]}</Typography>
               <form onSubmit={addScore}>
                 <Box display="flex" flexDirection="row" justifyContent="flex-end">
                   <DartScore disabled={!!editScore} onClick={() => {
@@ -591,7 +578,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
           {Object.entries(gameData.playerStats).map(([player, stats]) => {
             return (
               <div>
-                <div><b>{playerUtils.displayName(player)}</b></div>
+                <div><b>{playerDisplayMap?.[player]}</b></div>
                 <div>
                   <p>Score: {stats.scoringTotal}</p>
                   <p>Rounds: {stats.roundsPlayed}</p>

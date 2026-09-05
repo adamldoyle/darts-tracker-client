@@ -2,6 +2,8 @@ import { IMonitoredState } from '@adamldoyle/reduxjs-toolkit-monitored-slice';
 
 export interface IPlayer {
   email: string;
+  displayName?: string;
+  colorCode?: string;
 }
 
 export interface ILeague {
