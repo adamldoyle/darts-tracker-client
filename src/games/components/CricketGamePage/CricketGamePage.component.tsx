@@ -11,7 +11,6 @@ import {
   isTripleScore, MISSED_DART, TickerGameEventsProps,
 } from '../../../scoreboard/components';
 import { useHistory } from 'react-router-dom';
-import { playerUtils } from 'shared/utils';
 import { DartScore } from '../../../scoreboard/components/DartScore';
 import { getIsSameRound } from '../../../store/games/helpers';
 import { selectors as leagueSelectors } from 'store/leagues/slice';

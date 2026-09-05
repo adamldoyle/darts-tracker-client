@@ -13,10 +13,9 @@ import {
 import { Search as SearchIcon } from '@material-ui/icons';
 import { hooks } from 'store/games/slice';
 import { useSelector } from 'react-redux';
-import { selectors } from 'store/leagues/slice';
+import { selectors as leagueSelectors, selectors } from 'store/leagues/slice';
 import { IGame } from 'store/games/types';
 import { comparePlayerStats } from 'store/games/helpers';
-import { playerUtils } from 'shared/utils';
 
 const useStyles = makeStyles((theme) => ({
   listItem: {
@@ -30,6 +29,7 @@ export interface GamesListPageProps {}
 
 const GameListItem = ({ game }: { game: IGame }) => {
   const classes = useStyles();
+  const playerDisplayMap = useSelector(leagueSelectors.selectPlayerDisplayMap);
 
   const datePlayed = new Date(game.data.config.datePlayed);
   const sortedPlayers = Object.values(game.data.playerStats).sort(comparePlayerStats);
@@ -39,7 +39,7 @@ const GameListItem = ({ game }: { game: IGame }) => {
       <ListItemText
         primary={`${datePlayed.toLocaleDateString()} ${datePlayed.toLocaleTimeString()}`}
         secondary={sortedPlayers
-          .map((sortedPlayer) => `${sortedPlayer.ranking}. ${playerUtils.displayName(sortedPlayer.email)}`)
+          .map((sortedPlayer) => `${sortedPlayer.ranking}. ${playerDisplayMap?.[sortedPlayer.email]}`)
           .join(', ')}
       />
       <ListItemSecondaryAction>

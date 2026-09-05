@@ -82,6 +82,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
 
   const eloKFactor = useSelector(leagueSelectors.selectEloKFactor);
   const selectedLeague = useSelector(leagueSelectors.selectSelectedLeague);
+  const playerDisplayMap = useSelector(leagueSelectors.selectPlayerDisplayMap);
   const { makeStale: makeGamesStale } = gameHooks.useMonitoredData();
 
   const [gameData, setGameData] = useState<IGameData | undefined>();
@@ -341,7 +342,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
                       }}
                       onClick={() => toggleForfeit(player)}
                     >
-                      {playerUtils.displayName(player)} {playerEmoji(player)}
+                      {playerDisplayMap?.[player]} {playerEmoji(player)}
                     </div>
                   </td>
                 ))}
@@ -405,7 +406,7 @@ export const Scoreboard: FC<ScoreboardProps> = () => {
         {!gameOver && (
           <div style={{ flex: '1 0 auto' }}>
             <h2>Current player</h2>
-            <h3>Name: {playerUtils.displayName(currentPlayer ?? '')}</h3>
+            <h3>Name: {playerDisplayMap?.[currentPlayer]}</h3>
             <h3>Current round: {currentRound + 1}</h3>
             <h3>
               Remaining: {playerStats[currentPlayer].remaining}{' '}
