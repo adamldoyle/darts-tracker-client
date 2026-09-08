@@ -35,13 +35,13 @@ const getEventId = (event: GameEvent) => {
   return `${event.roundInfo.round}_${event.roundInfo.player}_${event.roundInfo.dart ?? 'none'}_${event.eventName}`
 }
 
-export const TickerGameEventsProps = ({events}: TickerGameEventsProps) => {
+export const TickerGameEvents = ({events}: TickerGameEventsProps) => {
   const classes = useStyles();
   const [shownEvents, setShownEvents] = useState<string[]>([]);
 
-  useEffect(() => {
+  const setOffEventRenders = (_events: GameEvent[]) => {
     const _showingEvents: string[] = [];
-    events.forEach(event => {
+    _events.forEach(event => {
       const eventId = getEventId(event);
       if (!shownEvents.includes(eventId)) {
         _showingEvents.push(eventId);
@@ -55,7 +55,11 @@ export const TickerGameEventsProps = ({events}: TickerGameEventsProps) => {
       }
     });
     setShownEvents((_prev) => [..._prev, ..._showingEvents]);
-  }, [events, classes.basicEvent]);
+  }
+
+  useEffect(() => {
+    setOffEventRenders(events);
+  }, [events, setOffEventRenders]);
 
   return (
     <>

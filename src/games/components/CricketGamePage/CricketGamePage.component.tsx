@@ -1,4 +1,4 @@
-import { FC, FormEvent, useEffect, useState } from 'react';
+import { FC, FormEvent, useEffect, useRef, useState } from 'react';
 import { Badge, Button, Slide, Box, Drawer, Grid, Typography, IconButton, Tooltip, makeStyles } from '@material-ui/core';
 import { useSelector } from 'react-redux';
 import { DartRound, DartThrow, GameEvent, ICricketGameData, IPlayerCricketStats, RoundInfo } from 'store/games/types';
@@ -8,7 +8,7 @@ import {
   DartboardWrapper,
   getScoringNumberFromBed,
   isDoubleScore, isMissScore,
-  isTripleScore, MISSED_DART, TickerGameEventsProps,
+  isTripleScore, MISSED_DART, TickerGameEvents,
 } from '../../../scoreboard/components';
 import { useHistory } from 'react-router-dom';
 import { DartScore } from '../../../scoreboard/components/DartScore';
@@ -212,31 +212,27 @@ const getTotalHits = (scoringNumberStatus: Record<number, number>, scoringNums: 
 export interface CricketGamePageProps {}
 
 const CountUpScore = ({score}: {score: number}) => {
-  const [localScore, setLocalScore] = useState(0);
+  const localScore = useRef<number>(0);
 
-  const countUpScore = (_sc: number) => {
-    const count = _sc - localScore;
+  useEffect(() => {
+    const count = score - localScore.current;
     if (count === 0) return;
-    if (localScore > _sc) {
-      setLocalScore(_sc);
+    if (localScore.current > score) {
+      localScore.current = score;
       return;
     }
     const iterations = Math.round(800 / 20);
     let ticks = 0;
     const iterate = setInterval(() => {
       ticks++
-      setLocalScore(_sc + Math.floor(count*Math.log10(ticks/iterations)));
+      localScore.current = score + Math.floor(count*Math.log10(ticks/iterations));
       if (ticks === iterations) {
         clearInterval(iterate);
       }
     }, 20)
-  }
-
-  useEffect(() => {
-    countUpScore(score);
   }, [score]);
 
-  return <b style={localScore < score ? { color: 'red'} : {}}>{localScore}</b>
+  return <b style={localScore.current < score ? { color: 'red'} : {}}>{localScore.current}</b>
 }
 
 export const CricketGamePage: FC<CricketGamePageProps> = () => {
@@ -528,7 +524,7 @@ export const CricketGamePage: FC<CricketGamePageProps> = () => {
                   </>
                 ))}
               </Box>
-              <TickerGameEventsProps events={gameData.events} />
+              <TickerGameEvents events={gameData.events} />
             </Box>
           </Grid>
           <Grid item xs={5}>
