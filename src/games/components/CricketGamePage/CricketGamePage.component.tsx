@@ -214,22 +214,26 @@ export interface CricketGamePageProps {}
 const CountUpScore = ({score}: {score: number}) => {
   const [localScore, setLocalScore] = useState(0);
 
-  useEffect(() => {
-    const count = score - localScore;
+  const countUpScore = (_sc: number) => {
+    const count = _sc - localScore;
     if (count === 0) return;
-    if (localScore > score) {
-      setLocalScore(score);
+    if (localScore > _sc) {
+      setLocalScore(_sc);
       return;
     }
     const iterations = Math.round(800 / 20);
     let ticks = 0;
     const iterate = setInterval(() => {
       ticks++
-      setLocalScore(score + Math.floor(count*Math.log10(ticks/iterations)));
+      setLocalScore(_sc + Math.floor(count*Math.log10(ticks/iterations)));
       if (ticks === iterations) {
         clearInterval(iterate);
       }
     }, 20)
+  }
+
+  useEffect(() => {
+    countUpScore(score);
   }, [score]);
 
   return <b style={localScore < score ? { color: 'red'} : {}}>{localScore}</b>

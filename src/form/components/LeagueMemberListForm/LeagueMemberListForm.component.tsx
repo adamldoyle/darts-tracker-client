@@ -64,7 +64,7 @@ export const LeagueMemberListForm: FC<AllProps> = ({ label, rowLabel, field, inp
       // reset value
       isDoneWithEmail.current = null;
     }
-  }, [isDoneWithEmail.current]);
+  }, [isDoneWithEmail.current, fieldProps.value, helpers]);
 
   return (
     <FormControl fullWidth error={showRootError}>

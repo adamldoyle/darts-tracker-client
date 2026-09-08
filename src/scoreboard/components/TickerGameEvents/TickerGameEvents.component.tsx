@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GameEvent } from '../../../store/games/types';
-import { toast, cssTransition, Bounce } from 'react-toastify';
-import { Box, Collapse, makeStyles, Typography } from '@material-ui/core';
-import bagOfDicks from '../../../images/bag-of-dicks.gif';
+import { toast, Bounce } from 'react-toastify';
+import { makeStyles } from '@material-ui/core';
 import './static.css';
 
 const useStyles = makeStyles((theme) => ({
@@ -36,34 +35,10 @@ const getEventId = (event: GameEvent) => {
   return `${event.roundInfo.round}_${event.roundInfo.player}_${event.roundInfo.dart ?? 'none'}_${event.eventName}`
 }
 
-const BagOfDicks = () => {
-  return (
-    <Box display="flex" justifyContent="center">
-      <img src={bagOfDicks} alt="bag_of_dicks_text" width="50%" />
-    </Box>
-  )
-}
-
-const CustomWrapperAnimation = ({ title, text }: { title: string; text: string }) => {
-  const classes = useStyles();
-  return (
-    <Box>
-      <Collapse in={!!title} timeout={5000}>
-        <Box height="200px"></Box>
-      </Collapse>
-      <Box p={3} className={classes.textSign}>
-        <Typography>{title}</Typography>
-        <Typography variant="caption">{text}</Typography>
-      </Box>
-    </Box>
-  )
-}
-
 export const TickerGameEventsProps = ({events}: TickerGameEventsProps) => {
   const classes = useStyles();
   const [shownEvents, setShownEvents] = useState<string[]>([]);
 
-  // FIXME: we should show events one at a time and delay the entry of subsequent events
   useEffect(() => {
     const _showingEvents: string[] = [];
     events.forEach(event => {
@@ -77,22 +52,10 @@ export const TickerGameEventsProps = ({events}: TickerGameEventsProps) => {
           hideProgressBar: true,
           delay: 500*(_showingEvents.length),
         });
-        // toast(BagOfDicks, {
-        //   position: 'top-left',
-        //   transition: Slide,
-        //   className: classes.imageToast,
-        // });
-        // toast(<CustomWrapperAnimation text={event.eventDescription} title={event.eventName} />, {
-        //   position: 'top-left',
-        //   transition: Bounce,
-        //   className: classes.textToast,
-        //   hideProgressBar: true,
-        //   autoClose: false,
-        // });
       }
     });
     setShownEvents((_prev) => [..._prev, ..._showingEvents]);
-  }, [events]);
+  }, [events, classes.basicEvent]);
 
   return (
     <>
