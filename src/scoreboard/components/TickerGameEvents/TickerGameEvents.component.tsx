@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GameEvent } from '../../../store/games/types';
 import { toast, Bounce } from 'react-toastify';
 import { makeStyles } from '@material-ui/core';
@@ -39,7 +39,7 @@ export const TickerGameEvents = ({events}: TickerGameEventsProps) => {
   const classes = useStyles();
   const [shownEvents, setShownEvents] = useState<string[]>([]);
 
-  const setOffEventRenders = (_events: GameEvent[]) => {
+  const setOffEventRenders = useCallback((_events: GameEvent[]) => {
     const _showingEvents: string[] = [];
     _events.forEach(event => {
       const eventId = getEventId(event);
@@ -55,7 +55,7 @@ export const TickerGameEvents = ({events}: TickerGameEventsProps) => {
       }
     });
     setShownEvents((_prev) => [..._prev, ..._showingEvents]);
-  }
+  },[shownEvents, classes.basicEvent]);
 
   useEffect(() => {
     setOffEventRenders(events);
