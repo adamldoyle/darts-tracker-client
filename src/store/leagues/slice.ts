@@ -4,6 +4,7 @@ import { IRootState } from 'store/types';
 import { createMonitoredSlice } from '@adamldoyle/reduxjs-toolkit-monitored-slice';
 import { selectEmail } from '../auth/slice';
 import { ILeague, ILeaguesState, ILeagueWithMembers } from './types';
+import { displayName, getPlayerColor } from '../../shared/utils/player';
 
 const DEFAULT_K_FACTOR = 10;
 
@@ -47,8 +48,16 @@ export const selectEloKFactor = createSelector(
   baseSelectors.selectSlice,
   (slice) => slice.eloKFactor ?? DEFAULT_K_FACTOR,
 );
+export const selectPlayerColorMap = createSelector(baseSelectors.selectSlice, (slice) => slice.selectedLeague?.membership.reduce<Record<string, string>>((acc, player, index) => {
+  acc[player.email] = player.colorCode ? player.colorCode : getPlayerColor(player.email, index);
+  return acc;
+}, {}))
+export const selectPlayerDisplayMap = createSelector(baseSelectors.selectSlice, (slice) => slice.selectedLeague?.membership.reduce<Record<string, string>>((acc, player, index) => {
+  acc[player.email] = player.displayName ? player.displayName : displayName(player.email);
+  return acc;
+}, {}))
 
 const actions = slice.actions;
 const reducer = slice.reducer;
-const selectors = { ...baseSelectors, selectSelectedLeague, selectEloKFactor, selectLeaguePlayerEmails };
+const selectors = { ...baseSelectors, selectSelectedLeague, selectEloKFactor, selectLeaguePlayerEmails, selectPlayerColorMap, selectPlayerDisplayMap };
 export { selectors, actions, hooks, context, reducer };

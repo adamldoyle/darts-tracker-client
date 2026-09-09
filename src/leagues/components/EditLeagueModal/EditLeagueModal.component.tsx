@@ -15,13 +15,13 @@ import CloseIcon from '@material-ui/icons/Close';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { ILeagueWithMembers } from 'store/leagues/types';
-import { handleRootErrors, RootError, InputField, InputFieldList } from 'form/components';
+import { handleRootErrors, RootError, InputField, LeagueMemberListForm } from 'form/components';
 import { useDelayedFormValidation } from 'form/hooks';
 
 const Schema = Yup.object({
   leagueKey: Yup.string().required('League key is required').default(''),
   name: Yup.string().required('Name is required').default(''),
-  membership: Yup.array().of(Yup.string().required('Member is required')).default([]),
+  membership: Yup.array().of(Yup.object({ email: Yup.string().required('Member is required')})).default([]),
 });
 
 const emptyFormDefaults = Schema.getDefault();
@@ -40,11 +40,11 @@ export const EditLeagueModal: FC<EditLeagueModalProps> = ({ league, open, onSubm
     ? {
         leagueKey: league.leagueKey,
         name: league.name,
-        membership: league.membership.map(({ email }) => email),
+        membership: [...(league.membership ?? [])],
       }
     : emptyFormDefaults;
   return (
-    <Dialog open={open} fullWidth={true} maxWidth="sm" onClose={onCancel}>
+    <Dialog open={open} fullWidth={true} maxWidth="md" onClose={onCancel}>
       <DialogTitle>
         <Box
           style={{
@@ -98,7 +98,7 @@ export const EditLeagueModal: FC<EditLeagueModalProps> = ({ league, open, onSubm
                   </>
                 )}
                 <Grid item xs={12}>
-                  <InputFieldList label="Membership" field="membership" rowLabel="Member" />
+                  <LeagueMemberListForm label="Membership" field="membership" rowLabel="Member" />
                 </Grid>
               </Grid>
             </DialogContent>

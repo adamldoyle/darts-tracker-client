@@ -16,10 +16,6 @@ export const defaultPlayerColors = [
   '#ffed6f',
 ];
 
-export const PlayerColorMap: Record<string, string> = {
-
-}
-
-export const getPlayerColor = (player: string, index: number) => {
-  return PlayerColorMap[player] ?? defaultPlayerColors[index % defaultPlayerColors.length]
+export const getPlayerColor = (player: string, index: number, playerColorMap?: Record<string, string>) => {
+  return playerColorMap?.[player] ?? defaultPlayerColors[index % defaultPlayerColors.length]
 }

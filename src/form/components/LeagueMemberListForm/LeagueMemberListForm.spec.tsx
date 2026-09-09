@@ -2,9 +2,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Button } from '@material-ui/core';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { InputFieldList } from './InputFieldList.component';
+import { LeagueMemberListForm } from './LeagueMemberListForm.component';
 
-describe('InputFieldList', () => {
+describe('LeagueMemberListForm', () => {
   const renderComponent = (onSubmit = jest.fn(), defaultValue = '', required = false) => {
     const field = Yup.string().default(defaultValue);
     const Schema = Yup.object({
@@ -16,7 +16,7 @@ describe('InputFieldList', () => {
       <Formik initialValues={formDefaults} validationSchema={Schema} onSubmit={(values) => onSubmit(values)}>
         {() => (
           <Form>
-            <InputFieldList label="Test label" rowLabel="Test field" field="testField" />
+            <LeagueMemberListForm label="Test label" rowLabel="Test field" field="testField" />
             <Button type="submit">Submit</Button>
           </Form>
         )}
